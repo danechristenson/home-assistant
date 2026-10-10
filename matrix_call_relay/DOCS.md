@@ -8,7 +8,7 @@ it. If you only call people over a VPN into your home, you don't need it
 either.
 
 This add-on requires opening ports on your router. Read
-[Before you forward ports](https://github.com/danchristenson/home-assistant#before-you-forward-ports)
+[Before you forward ports](https://github.com/danechristenson/home-assistant#before-you-forward-ports)
 first.
 
 ## Setup
@@ -82,5 +82,5 @@ phones to use exactly these ports.
 
 ## Support
 
-- Add-on issues: <https://github.com/danchristenson/home-assistant/issues>
+- Add-on issues: <https://github.com/danechristenson/home-assistant/issues>
 - coturn: <https://github.com/coturn/coturn>

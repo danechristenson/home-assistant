@@ -1,11 +1,11 @@
 # Changelog
 
-## 26.9.1-2
+## 26.9.1.2
 
 - Option to use the new Matrix Call Relay add-on for voice and video calls
   between different networks (`call_relay`).
 
-## 26.9.1-1
+## 26.9.1.1
 
 - Sign Home Assistant users in to Element in the sidebar automatically
   (`ingress_autologin`). On a new server, the sidebar first walks you through

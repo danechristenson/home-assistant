@@ -3,7 +3,7 @@
 ## Installation
 
 1. Add the DC Add-ons repository to Home Assistant (see the
-   [repository README](https://github.com/danchristenson/home-assistant#installation)).
+   [repository README](https://github.com/danechristenson/home-assistant#installation)).
 2. Find **VoceChat** in the Add-on Store and click **Install**.
 3. Optionally adjust the configuration (see below).
 4. Click **Start**, then **Open Web UI**.
@@ -71,7 +71,7 @@ such as the **NGINX Proxy Manager** add-on rather than forwarding port 3000:
    ```
 
 3. Forward only port 443 on your router to the proxy, and read
-   [what port forwarding exposes](https://github.com/danchristenson/home-assistant#before-you-forward-ports)
+   [what port forwarding exposes](https://github.com/danechristenson/home-assistant#before-you-forward-ports)
    first.
 4. In this add-on, leave `ssl` off and set `frontend_url` to
    `https://chat.example.com` so invite links use the public address.
@@ -98,5 +98,5 @@ All VoceChat data (database, uploads, avatars, keys) is stored in the add-on's
 
 ## Support
 
-- Add-on issues: <https://github.com/danchristenson/home-assistant/issues>
+- Add-on issues: <https://github.com/danechristenson/home-assistant/issues>
 - VoceChat documentation: <https://doc.voce.chat>

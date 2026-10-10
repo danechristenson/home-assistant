@@ -23,6 +23,6 @@ lightweight Matrix server.
 
 See the **Documentation** tab for installation and configuration details.
 
-[call-relay]: https://github.com/danchristenson/home-assistant/tree/main/matrix_call_relay
+[call-relay]: https://github.com/danechristenson/home-assistant/tree/main/matrix_call_relay
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg

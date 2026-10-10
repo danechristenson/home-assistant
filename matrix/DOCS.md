@@ -3,7 +3,7 @@
 ## Installation
 
 1. Add the DC Add-ons repository to Home Assistant (see the
-   [repository README](https://github.com/danchristenson/home-assistant#installation)).
+   [repository README](https://github.com/danechristenson/home-assistant#installation)).
 2. Find **Matrix** in the Add-on Store and click **Install**.
 3. On the **Configuration** tab, set `server_name` (see below). The add-on
    will not start without it.
@@ -82,7 +82,7 @@ The recommended setup for letting friends connect from anywhere:
    files, add `client_max_body_size 100m;` under **Advanced**.
 3. Forward port 443 on your router to the proxy. Do not forward port 8008,
    and read
-   [what port forwarding exposes](https://github.com/danchristenson/home-assistant#before-you-forward-ports)
+   [what port forwarding exposes](https://github.com/danechristenson/home-assistant#before-you-forward-ports)
    first.
 4. In this add-on, leave `ssl` off and set `homeserver_url` to
    `https://matrix.example.com`.
@@ -100,7 +100,7 @@ needs a relay, called a TURN server.
 
 The relay is a separate add-on, **Matrix Call Relay**, so it's only
 downloaded if you want it. It needs router port forwards; read
-[what port forwarding exposes](https://github.com/danchristenson/home-assistant#before-you-forward-ports)
+[what port forwarding exposes](https://github.com/danechristenson/home-assistant#before-you-forward-ports)
 first.
 
 1. Install **Matrix Call Relay** from this repository, set its `address`,
@@ -204,5 +204,5 @@ Home Assistant backups.
 
 ## Support
 
-- Add-on issues: <https://github.com/danchristenson/home-assistant/issues>
+- Add-on issues: <https://github.com/danechristenson/home-assistant/issues>
 - Continuwuity documentation: <https://continuwuity.org>
