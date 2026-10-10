@@ -1,0 +1,5 @@
+build_from:
+  amd64: ghcr.io/continuwuity/continuwuity:v26.9.1
+  aarch64: ghcr.io/continuwuity/continuwuity:v26.9.1
+args:
+  ELEMENT_VERSION: v1.12.30

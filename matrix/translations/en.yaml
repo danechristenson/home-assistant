@@ -1,0 +1,34 @@
+configuration:
+  server_name:
+    name: Server name
+    description: >-
+      PERMANENT - cannot be changed after the first start. The domain part of
+      every user ID (e.g. example.com gives @you:example.com). Changing it later
+      requires wiping all Matrix data.
+  homeserver_url:
+    name: Homeserver URL
+    description: >-
+      URL Element and Matrix apps use to reach the server, e.g.
+      https://matrix.example.com. Defaults to http://<server name>:8008.
+      Must be HTTPS if you open Home Assistant over HTTPS.
+  registration_token:
+    name: Registration token
+    description: >-
+      Shared token required to create an account. Leave empty to only allow
+      tokens issued by the admin.
+  allow_federation:
+    name: Allow federation
+    description: >-
+      Let users talk to people on other Matrix servers. Needs a public domain
+      with valid HTTPS. Avoid turning it off again once enabled.
+  ssl:
+    name: Use SSL
+    description: Serve the Matrix API over HTTPS using the certificate below.
+  certfile:
+    name: Certificate file
+    description: Certificate file in /ssl. Only used when SSL is enabled.
+  keyfile:
+    name: Private key file
+    description: Private key file in /ssl. Only used when SSL is enabled.
+network:
+  8008/tcp: Matrix client API (point Matrix apps here)

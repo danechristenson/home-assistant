@@ -23,6 +23,7 @@ Or click the button above to add the repository in one step.
 
 | Add-on | Description |
 | ------ | ----------- |
+| [Matrix](./matrix) | Matrix chat server (Continuwuity) with the Element web client |
 | [VoceChat](./vocechat) | Self-hosted, lightweight chat server with a web UI |
 
 ## License

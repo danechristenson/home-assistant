@@ -1,0 +1,37 @@
+name: Matrix
+version: "26.9.1"
+slug: matrix
+description: Matrix chat server (Continuwuity) with the Element web client
+url: https://github.com/danchristenson/HomeAssistant/tree/main/matrix
+arch:
+  - amd64
+  - aarch64
+init: false
+startup: services
+boot: auto
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:matrix
+panel_title: Element
+ports:
+  8008/tcp: 8008
+ports_description:
+  8008/tcp: Matrix client API (point Matrix apps here)
+map:
+  - ssl
+options:
+  server_name: ""
+  homeserver_url: ""
+  registration_token: ""
+  allow_federation: false
+  ssl: false
+  certfile: fullchain.pem
+  keyfile: privkey.pem
+schema:
+  server_name: str
+  homeserver_url: str
+  registration_token: password
+  allow_federation: bool
+  ssl: bool
+  certfile: str
+  keyfile: str
