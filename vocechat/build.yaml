@@ -1,0 +1,3 @@
+build_from:
+  amd64: privoce/vocechat-server:v0.5.36
+  aarch64: privoce/vocechat-server:v0.5.36-arm64

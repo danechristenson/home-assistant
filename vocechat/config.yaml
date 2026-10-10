@@ -1,0 +1,13 @@
+name: VoceChat
+version: "0.5.36"
+slug: vocechat
+description: VoceChat server
+url: https://github.com/Privoce/vocechat-web
+arch: [amd64, aarch64]
+startup: services
+boot: auto
+webui: "http://[HOST]:[PORT:3000]/"
+ports:
+  3000/tcp: 3000
+ports_description:
+  3000/tcp: VoceChat web UI and API
