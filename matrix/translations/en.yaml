@@ -37,6 +37,13 @@ configuration:
       automatically with a Matrix account named after their Home Assistant
       username (created the first time). Friends without Home Assistant
       accounts are not affected. Not available while Use HTTPS is on.
+  call_relay:
+    name: Use call relay
+    description: >-
+      Use the separate Matrix Call Relay add-on so voice and video calls
+      connect between people on different networks (e.g. a friend on mobile
+      data). Install and start that add-on first. Calls on the same home
+      network work without it.
   ssl:
     name: Use HTTPS
     description: >-

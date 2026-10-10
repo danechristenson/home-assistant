@@ -1,0 +1,3 @@
+build_from:
+  amd64: coturn/coturn:4.18.0-alpine
+  aarch64: coturn/coturn:4.18.0-alpine

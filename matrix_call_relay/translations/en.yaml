@@ -1,0 +1,31 @@
+configuration:
+  address:
+    name: Public address
+    description: >-
+      Hostname (or IP) that phones use to reach this relay from the internet,
+      e.g. matrix.example.com. It must point to your home's public IP in
+      public DNS. Usually the same host as the Matrix add-on's Server
+      address.
+network:
+  3478/tcp: Relay connections from Matrix apps. Forward this on your router.
+  3478/udp: Relay connections from Matrix apps. Forward this on your router.
+  49160/udp: Call audio and video. Forward this on your router.
+  49161/udp: Call audio and video. Forward this on your router.
+  49162/udp: Call audio and video. Forward this on your router.
+  49163/udp: Call audio and video. Forward this on your router.
+  49164/udp: Call audio and video. Forward this on your router.
+  49165/udp: Call audio and video. Forward this on your router.
+  49166/udp: Call audio and video. Forward this on your router.
+  49167/udp: Call audio and video. Forward this on your router.
+  49168/udp: Call audio and video. Forward this on your router.
+  49169/udp: Call audio and video. Forward this on your router.
+  49170/udp: Call audio and video. Forward this on your router.
+  49171/udp: Call audio and video. Forward this on your router.
+  49172/udp: Call audio and video. Forward this on your router.
+  49173/udp: Call audio and video. Forward this on your router.
+  49174/udp: Call audio and video. Forward this on your router.
+  49175/udp: Call audio and video. Forward this on your router.
+  49176/udp: Call audio and video. Forward this on your router.
+  49177/udp: Call audio and video. Forward this on your router.
+  49178/udp: Call audio and video. Forward this on your router.
+  49179/udp: Call audio and video. Forward this on your router.

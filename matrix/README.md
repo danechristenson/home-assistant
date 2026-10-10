@@ -12,6 +12,8 @@ encrypted, so only the people in a conversation can read them.
 - Chat in the Home Assistant sidebar, or with the free
   [Element](https://element.io/download) app on iPhone, Android and computers
 - Group rooms, direct messages, file and photo sharing, voice messages
+- Voice and video calls at home; for calls with people on other networks,
+  also install the separate [Matrix Call Relay][call-relay] add-on
 - No limits on users or message history
 - Private to your household by default; can optionally connect to other
   [Matrix](https://matrix.org) servers so you can chat with people elsewhere
@@ -21,5 +23,6 @@ lightweight Matrix server.
 
 See the **Documentation** tab for installation and configuration details.
 
+[call-relay]: https://github.com/danchristenson/home-assistant/tree/main/matrix_call_relay
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg

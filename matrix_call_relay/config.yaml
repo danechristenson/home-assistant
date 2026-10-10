@@ -1,0 +1,63 @@
+name: Matrix Call Relay
+version: "4.18.0"
+slug: matrix_call_relay
+description: Lets Matrix voice and video calls connect between different networks
+url: https://github.com/danchristenson/home-assistant/tree/main/matrix_call_relay
+arch:
+  - amd64
+  - aarch64
+init: false
+startup: services
+boot: auto
+map:
+  - share:rw
+ports:
+  3478/tcp: 3478
+  3478/udp: 3478
+  49160/udp: 49160
+  49161/udp: 49161
+  49162/udp: 49162
+  49163/udp: 49163
+  49164/udp: 49164
+  49165/udp: 49165
+  49166/udp: 49166
+  49167/udp: 49167
+  49168/udp: 49168
+  49169/udp: 49169
+  49170/udp: 49170
+  49171/udp: 49171
+  49172/udp: 49172
+  49173/udp: 49173
+  49174/udp: 49174
+  49175/udp: 49175
+  49176/udp: 49176
+  49177/udp: 49177
+  49178/udp: 49178
+  49179/udp: 49179
+ports_description:
+  3478/tcp: Relay connections from Matrix apps
+  3478/udp: Relay connections from Matrix apps
+  49160/udp: Call audio and video
+  49161/udp: Call audio and video
+  49162/udp: Call audio and video
+  49163/udp: Call audio and video
+  49164/udp: Call audio and video
+  49165/udp: Call audio and video
+  49166/udp: Call audio and video
+  49167/udp: Call audio and video
+  49168/udp: Call audio and video
+  49169/udp: Call audio and video
+  49170/udp: Call audio and video
+  49171/udp: Call audio and video
+  49172/udp: Call audio and video
+  49173/udp: Call audio and video
+  49174/udp: Call audio and video
+  49175/udp: Call audio and video
+  49176/udp: Call audio and video
+  49177/udp: Call audio and video
+  49178/udp: Call audio and video
+  49179/udp: Call audio and video
+options:
+  address: ""
+schema:
+  address: str

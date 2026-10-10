@@ -80,13 +80,33 @@ The recommended setup for letting friends connect from anywhere:
    `http://<Home Assistant IP>:8008`, with **Websockets support**, **Force
    SSL**, **HSTS** and **Block common exploits** turned on. To allow large
    files, add `client_max_body_size 100m;` under **Advanced**.
-3. Forward port 443 on your router to the proxy. Do not forward port 8008.
+3. Forward port 443 on your router to the proxy. Do not forward port 8008,
+   and read
+   [what port forwarding exposes](https://github.com/danchristenson/home-assistant#before-you-forward-ports)
+   first.
 4. In this add-on, leave `ssl` off and set `homeserver_url` to
    `https://matrix.example.com`.
 
 Keep Home Assistant itself private (for example behind your router's
 WireGuard VPN). Friends don't need it: they use the Element app and invite
 links, and sidebar autologin is only for people with Home Assistant accounts.
+
+## Voice and video calls
+
+Calls between people on the same home network work out of the box. When
+people are on different networks (a friend on mobile data, or behind a strict
+router), their phones often can't reach each other directly and the call
+needs a relay, called a TURN server.
+
+The relay is a separate add-on, **Matrix Call Relay**, so it's only
+downloaded if you want it. It needs router port forwards; read
+[what port forwarding exposes](https://github.com/danchristenson/home-assistant#before-you-forward-ports)
+first.
+
+1. Install **Matrix Call Relay** from this repository, set its `address`,
+   and start it (see its Documentation tab).
+2. Turn on `call_relay` here and restart this add-on. The log shows
+   `Using the Matrix Call Relay at ...`.
 
 ## Configuration
 
@@ -98,6 +118,7 @@ homeserver_url: https://matrix.example.com
 registration_token: ""
 allow_federation: false
 ingress_autologin: true
+call_relay: false
 ssl: false
 certfile: fullchain.pem
 keyfile: privkey.pem
@@ -143,6 +164,11 @@ turning it off again once enabled.
 Sign Home Assistant users in to Element in the sidebar automatically (see
 [Signing in from the sidebar](#signing-in-from-the-sidebar-autologin)). On by
 default.
+
+### Option: `call_relay`
+
+Use the Matrix Call Relay add-on for voice and video calls (see
+[Voice and video calls](#voice-and-video-calls)). Off by default.
 
 ### Option: `ssl`
 

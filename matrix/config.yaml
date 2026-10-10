@@ -1,5 +1,5 @@
 name: Matrix
-version: "26.9.1-1"
+version: "26.9.1-2"
 slug: matrix
 description: Private, encrypted group chat on Home Assistant, using the Element app
 url: https://github.com/danchristenson/home-assistant/tree/main/matrix
@@ -19,12 +19,14 @@ ports_description:
   8008/tcp: Matrix client API (point Matrix apps here)
 map:
   - ssl
+  - share
 options:
   server_name: ""
   homeserver_url: ""
   registration_token: ""
   allow_federation: false
   ingress_autologin: true
+  call_relay: false
   ssl: false
   certfile: fullchain.pem
   keyfile: privkey.pem
@@ -34,6 +36,7 @@ schema:
   registration_token: password
   allow_federation: bool
   ingress_autologin: bool
+  call_relay: bool
   ssl: bool
   certfile: str
   keyfile: str

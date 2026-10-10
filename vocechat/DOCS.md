@@ -70,7 +70,9 @@ such as the **NGINX Proxy Manager** add-on rather than forwarding port 3000:
    client_max_body_size 100m;
    ```
 
-3. Forward only port 443 on your router to the proxy.
+3. Forward only port 443 on your router to the proxy, and read
+   [what port forwarding exposes](https://github.com/danchristenson/home-assistant#before-you-forward-ports)
+   first.
 4. In this add-on, leave `ssl` off and set `frontend_url` to
    `https://chat.example.com` so invite links use the public address.
 

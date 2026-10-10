@@ -113,6 +113,28 @@ else
     echo "AUTOLOGIN=false" > "$AUTOLOGIN_ENV"
 fi
 
+# Voice and video calls between different networks, through the separate
+# Matrix Call Relay add-on. It shares its address and secret via /share; the
+# file is parsed rather than sourced because other add-ons can write there.
+RELAY_CONF=/share/matrix-call-relay/relay.conf
+if [ "$(option call_relay)" = "true" ]; then
+    RELAY_ADDRESS=$(sed -nE 's/^address=([A-Za-z0-9.:-]+)$/\1/p' "$RELAY_CONF" 2>/dev/null || true)
+    RELAY_SECRET=$(sed -nE 's/^secret=([0-9a-f]+)$/\1/p' "$RELAY_CONF" 2>/dev/null || true)
+    if [ -n "$RELAY_ADDRESS" ] && [ -n "$RELAY_SECRET" ]; then
+        cat >> "$CONFIG" <<TOML
+turn_uris = ["turn:$RELAY_ADDRESS:3478?transport=udp", "turn:$RELAY_ADDRESS:3478?transport=tcp"]
+turn_secret = "$RELAY_SECRET"
+TOML
+        echo "[INFO] Using the Matrix Call Relay at $RELAY_ADDRESS for calls"
+    elif [ ! -e "$RELAY_CONF" ]; then
+        echo "[WARN] 'Use call relay' is on, but the Matrix Call Relay add-on isn't running." >&2
+        echo "[WARN] Install and start it, then restart this add-on." >&2
+    else
+        echo "[WARN] 'Use call relay' is on, but $RELAY_CONF is unreadable or invalid." >&2
+        echo "[WARN] Restart the Matrix Call Relay add-on, then this one." >&2
+    fi
+fi
+
 if [ "$(option ssl)" = "true" ]; then
     CERTFILE="/ssl/$(option_text certfile)"
     KEYFILE="/ssl/$(option_text keyfile)"
