@@ -3,7 +3,7 @@
 ## Installation
 
 1. Add the DC Add-ons repository to Home Assistant (see the
-   [repository README](https://github.com/danchristenson/HomeAssistant#installation)).
+   [repository README](https://github.com/danchristenson/home-assistant#installation)).
 2. Find **VoceChat** in the Add-on Store and click **Install**.
 3. Optionally adjust the configuration (see below).
 4. Click **Start**, then **Open Web UI**.
@@ -74,5 +74,5 @@ All VoceChat data (database, uploads, avatars, keys) is stored in the add-on's
 
 ## Support
 
-- Add-on issues: <https://github.com/danchristenson/HomeAssistant/issues>
+- Add-on issues: <https://github.com/danchristenson/home-assistant/issues>
 - VoceChat documentation: <https://doc.voce.chat>

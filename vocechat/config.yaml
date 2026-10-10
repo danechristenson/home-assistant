@@ -2,7 +2,7 @@ name: VoceChat
 version: "0.5.36"
 slug: vocechat
 description: Self-hosted, lightweight chat server with a web UI
-url: https://github.com/danchristenson/HomeAssistant/tree/main/vocechat
+url: https://github.com/danchristenson/home-assistant/tree/main/vocechat
 arch:
   - amd64
   - aarch64

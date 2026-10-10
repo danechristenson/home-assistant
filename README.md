@@ -11,7 +11,7 @@ A collection of Home Assistant add-ons maintained by Dane Christenson.
 3. Add this URL and click **Add**:
 
    ```
-   https://github.com/danchristenson/HomeAssistant
+   https://github.com/danchristenson/home-assistant
    ```
 
 4. Close the dialog and refresh the page. The add-ons below will appear under
@@ -30,4 +30,4 @@ Or click the button above to add the repository in one step.
 [MIT](./LICENSE)
 
 [repo-badge]: https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg
-[repo-link]: https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fdanchristenson%2FHomeAssistant
+[repo-link]: https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fdanchristenson%2Fhome-assistant
