@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invite people</title>
+<script src="qrcode.js"></script>
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #17191c; --muted: #737d8c; --line: #e3e8f0; --card: #f4f6fa; --accent: #0dbd8b; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #15191e; --fg: #ebeef2; --muted: #a9b2bc; --line: #2c333c; --card: #1d2228; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { margin: 0 0 4px; font-size: 1.6rem; }
+  h2 { margin: 0 0 8px; font-size: 1.1rem; }
+  p, li { color: var(--muted); }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-top: 20px; }
+  ol { padding-left: 20px; margin: 8px 0 0; }
+  code { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font-size: 0.9em; color: var(--fg); }
+  label { display: block; font-weight: 600; margin: 16px 0 6px; }
+  input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; }
+  button { padding: 7px 14px; border-radius: 8px; border: 1px solid var(--accent); background: transparent; color: var(--accent); font: inherit; cursor: pointer; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .result { display: grid; grid-template-columns: 200px 1fr; gap: 20px; align-items: center; margin-top: 16px; }
+  @media (max-width: 560px) { .result { grid-template-columns: 1fr; justify-items: center; } }
+  .qr { width: 200px; height: 200px; background: #fff; border-radius: 8px; padding: 8px; }
+  .qr svg { width: 100%; height: 100%; display: block; }
+  .link { word-break: break-all; color: var(--fg); margin: 0 0 10px; }
+  .warning { border-color: #e5a50a; }
+  .warning h2 { color: #e5a50a; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Invite people</h1>
+  <p>Create a sign-up link for someone, or show them how to connect their app.</p>
+
+  <section class="warning" id="local-warning" hidden>
+    <h2>These links only work on your home network</h2>
+    <p>The server address is <code id="local-url"></code>, which people outside your home can't reach.
+       To invite friends, make the server reachable at a public <code>https://</code> address (see the add-on's
+       Documentation tab) and set it as <strong>Server address</strong> in the add-on configuration.</p>
+  </section>
+
+  <section>
+    <h2>1. Create an invite code</h2>
+    <p>In Element, open the <strong>Admin Room</strong> and send one of these:</p>
+    <ul>
+      <li><code>!admin token issue --once</code> &mdash; works for one person</li>
+      <li><code>!admin token issue --max-age 7d</code> &mdash; works for anyone for 7 days</li>
+      <li><code>!admin token issue --max-uses 5</code> &mdash; works for 5 people</li>
+    </ul>
+    <p>The server replies with a code. To see or cancel codes later, send <code>!admin token list</code> or <code>!admin token revoke &lt;code&gt;</code>.</p>
+
+    <label for="token">2. Paste the code here</label>
+    <input id="token" autocomplete="off" spellcheck="false" placeholder="e.g. 3zRfsFa0a3hQQeSE">
+
+    <div id="invite" class="result" hidden>
+      <div class="qr" id="invite-qr"></div>
+      <div>
+        <p>Have them scan this or open the link to choose a username and password. Then they sign in with the Element app.</p>
+        <p class="link" id="invite-link"></p>
+        <div class="row">
+          <button data-copy="invite-link">Copy link</button>
+          <button id="share" hidden>Share&hellip;</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Connect the Element app</h2>
+    <div class="result">
+      <div class="qr" id="server-qr"></div>
+      <div>
+        <ol>
+          <li>Install <strong>Element</strong> from the App Store, Google Play or <a href="https://element.io/download" target="_blank" rel="noopener">element.io/download</a>.</li>
+          <li>Tap <strong>Sign in</strong>, then <strong>Edit</strong> next to the server.</li>
+          <li>Enter this server address (or scan the code to copy it):</li>
+        </ol>
+        <p class="link" id="server-url"></p>
+        <div class="row"><button data-copy="server-url">Copy address</button></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+  function qrSvg(text) {
+    const qr = qrcode(0, "M");
+    qr.addData(text);
+    qr.make();
+    return qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+  }
+
+  for (const button of document.querySelectorAll("[data-copy]")) {
+    button.onclick = async () => {
+      const text = document.getElementById(button.dataset.copy).textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (e) {
+        // Clipboard API blocked (e.g. inside a frame): fall back to selecting the text
+        const range = document.createRange();
+        range.selectNodeContents(document.getElementById(button.dataset.copy));
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+        document.execCommand("copy");
+      }
+      const label = button.textContent;
+      button.textContent = "Copied";
+      setTimeout(() => (button.textContent = label), 1500);
+    };
+  }
+
+  fetch("../element/config.json").then((r) => r.json()).then((config) => {
+    const server = config.default_server_config["m.homeserver"].base_url.replace(/\/+$/, "");
+    document.getElementById("server-url").textContent = server;
+    document.getElementById("server-qr").innerHTML = qrSvg(server);
+
+    const host = new URL(server).hostname;
+    const isLocal = !server.startsWith("https://")
+      || host === "localhost"
+      || /\.(local|lan|home|internal)$/.test(host)
+      || /^(10|127)\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\.|^\[|^[\d.]+$/.test(host);
+    if (isLocal) {
+      document.getElementById("local-url").textContent = server;
+      document.getElementById("local-warning").hidden = false;
+    }
+
+    const input = document.getElementById("token");
+    const share = document.getElementById("share");
+    input.oninput = () => {
+      const token = input.value.trim().replace(/^`|`$/g, "");
+      document.getElementById("invite").hidden = !token;
+      if (!token) return;
+      const link = `${server}/_continuwuity/account/register/?flow=trusted&token=${encodeURIComponent(token)}`;
+      document.getElementById("invite-link").textContent = link;
+      document.getElementById("invite-qr").innerHTML = qrSvg(link);
+      share.hidden = !navigator.share;
+      share.onclick = () => navigator.share({ title: "Join our chat", url: link }).catch(() => {});
+    };
+  });
+</script>
+</body>
+</html>

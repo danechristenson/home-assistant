@@ -1,8 +1,8 @@
 name: Matrix
-version: "26.9.1"
+version: "26.9.1-1"
 slug: matrix
-description: Matrix chat server (Continuwuity) with the Element web client
-url: https://github.com/danchristenson/HomeAssistant/tree/main/matrix
+description: Private, encrypted group chat on Home Assistant, using the Element app
+url: https://github.com/danchristenson/home-assistant/tree/main/matrix
 arch:
   - amd64
   - aarch64
@@ -24,6 +24,7 @@ options:
   homeserver_url: ""
   registration_token: ""
   allow_federation: false
+  ingress_autologin: true
   ssl: false
   certfile: fullchain.pem
   keyfile: privkey.pem
@@ -32,6 +33,7 @@ schema:
   homeserver_url: str
   registration_token: password
   allow_federation: bool
+  ingress_autologin: bool
   ssl: bool
   certfile: str
   keyfile: str

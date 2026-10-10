@@ -1,7 +1,7 @@
 name: VoceChat
 version: "0.5.36"
 slug: vocechat
-description: Self-hosted, lightweight chat server with a web UI
+description: Private group chat for your family or team, hosted on Home Assistant
 url: https://github.com/danchristenson/home-assistant/tree/main/vocechat
 arch:
   - amd64

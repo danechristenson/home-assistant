@@ -3,7 +3,9 @@ set -e
 
 OPTIONS=/data/options.json
 CONFIG=/tmp/continuwuity.toml
-WEBROOT=/var/www/element
+WEBROOT=/var/www
+AUTOLOGIN_TOKENS=/data/autologin_tokens
+AUTOLOGIN_ENV=/tmp/autologin.env
 
 # Print an option's raw JSON value. JSON string escapes are valid TOML and
 # JSON, so string values can be written into both files as-is.
@@ -14,6 +16,10 @@ option() {
 # Print an option's string value without quotes (for simple values only)
 option_text() {
     option "$1" | sed -E 's/^"(.*)"$/\1/'
+}
+
+random_token() {
+    head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'
 }
 
 SERVER_NAME=$(option_text server_name)
@@ -35,14 +41,17 @@ if [ -f /data/server_name ]; then
     fi
 fi
 
+if [ "$(option ssl)" = "true" ]; then
+    SCHEME=https
+else
+    SCHEME=http
+fi
+
 HOMESERVER_URL=$(option_text homeserver_url)
 if [ -z "$HOMESERVER_URL" ]; then
-    if [ "$(option ssl)" = "true" ]; then
-        HOMESERVER_URL="https://${SERVER_NAME}:8008"
-    else
-        HOMESERVER_URL="http://${SERVER_NAME}:8008"
-    fi
+    HOMESERVER_URL="${SCHEME}://${SERVER_NAME}:8008"
 fi
+HOMESERVER_URL=${HOMESERVER_URL%/}
 
 cat > "$CONFIG" <<TOML
 [global]
@@ -57,6 +66,51 @@ TOML
 
 if [ "$(option registration_token)" != '""' ]; then
     echo "registration_token = $(option registration_token)" >> "$CONFIG"
+fi
+
+# Home Assistant ingress autologin: an appservice that may log in as any
+# local user. The token never leaves the container; turning the option off
+# forgets it, which leaves the registered appservice unusable.
+AUTOLOGIN=$(option ingress_autologin)
+if [ "$AUTOLOGIN" = "true" ] && [ "$SCHEME" = "https" ]; then
+    # busybox's TLS client cannot talk to Continuwuity's TLS listener
+    echo "[WARN] Sidebar autologin is not available while 'Use HTTPS' is on." >&2
+    echo "[WARN] Let a reverse proxy handle HTTPS instead (see the Documentation tab) to use it." >&2
+    AUTOLOGIN=false
+fi
+
+if [ "$AUTOLOGIN" = "true" ]; then
+    if [ ! -f "$AUTOLOGIN_TOKENS" ]; then
+        (umask 077 && printf 'AS_TOKEN=%s\nHS_TOKEN=%s\n' "$(random_token)" "$(random_token)" > "$AUTOLOGIN_TOKENS")
+    fi
+    . "$AUTOLOGIN_TOKENS"
+    SERVER_NAME_REGEX=$(printf '%s' "$SERVER_NAME" | sed 's/\./\\./g')
+    cat >> "$CONFIG" <<TOML
+admin_execute = ['''appservices register
+\`\`\`
+id: home-assistant-autologin
+url: null
+as_token: $AS_TOKEN
+hs_token: $HS_TOKEN
+sender_localpart: _ha_autologin
+rate_limited: false
+namespaces:
+  users:
+    - exclusive: false
+      regex: '@.*:$SERVER_NAME_REGEX'
+\`\`\`''']
+TOML
+    (umask 077 && cat > "$AUTOLOGIN_ENV" <<ENV
+AUTOLOGIN=true
+AS_TOKEN=$AS_TOKEN
+SERVER_NAME='$SERVER_NAME'
+HOMESERVER_URL='$HOMESERVER_URL'
+INTERNAL_URL=${SCHEME}://127.0.0.1:8008
+ENV
+)
+else
+    rm -f "$AUTOLOGIN_TOKENS"
+    echo "AUTOLOGIN=false" > "$AUTOLOGIN_ENV"
 fi
 
 if [ "$(option ssl)" = "true" ]; then
@@ -76,8 +130,15 @@ key = "$KEYFILE"
 TOML
 fi
 
+# Advertise the reachable address, so invite links point at the right place
+cat >> "$CONFIG" <<TOML
+
+[global.well_known]
+client = "$HOMESERVER_URL"
+TOML
+
 # Element Web, pinned to this homeserver
-cat > "$WEBROOT/config.json" <<JSON
+cat > "$WEBROOT/element/config.json" <<JSON
 {
     "default_server_config": {
         "m.homeserver": {
@@ -88,7 +149,10 @@ cat > "$WEBROOT/config.json" <<JSON
     "disable_custom_urls": false,
     "disable_guests": true,
     "brand": "Element",
-    "show_labs_settings": false
+    "show_labs_settings": false,
+    "embedded_pages": {
+        "home_url": "home.html"
+    }
 }
 JSON
 
@@ -106,5 +170,32 @@ httpd -f -p 0.0.0.0:8099 -h "$WEBROOT" -c /tmp/httpd.conf &
 
 printf '%s' "$SERVER_NAME" > /data/server_name
 
+# Pass the server's output through to the log, remembering the one-time token
+# it prints until the first (admin) account exists, so the sidebar can offer it
+rm -f /tmp/setup_token /tmp/server.out
+mkfifo /tmp/server.out
+ESC=$(printf '\033')
+while IFS= read -r line; do
+    printf '%s\n' "$line"
+    case "$line" in
+        *"using the registration token "*)
+            printf '%s' "$line" | sed -E "s/${ESC}\\[[0-9;]*m//g" \
+                | sed -nE 's/.*using the registration token ([A-Za-z0-9]+).*/\1/p' > /tmp/setup_token
+            ;;
+    esac
+done < /tmp/server.out &
+
 echo "[INFO] Starting Continuwuity for $SERVER_NAME"
-exec conduwuit --config "$CONFIG"
+conduwuit --config "$CONFIG" > /tmp/server.out 2>&1 &
+SERVER_PID=$!
+trap 'kill -TERM "$SERVER_PID" 2>/dev/null' TERM INT
+
+set +e
+wait "$SERVER_PID"
+STATUS=$?
+# A trapped signal interrupts wait; wait again for the server to finish
+if kill -0 "$SERVER_PID" 2>/dev/null; then
+    wait "$SERVER_PID"
+    STATUS=$?
+fi
+exit "$STATUS"

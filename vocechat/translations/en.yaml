@@ -1,0 +1,39 @@
+configuration:
+  domain:
+    name: Domain name
+    description: >-
+      Only needed if people reach VoceChat from outside your home using a
+      web address you own. Enter just the name, without https:// - for
+      example chat.example.com. Leave empty if you only use VoceChat on your
+      home network.
+  frontend_url:
+    name: Public address
+    description: >-
+      The full address people type into their browser to open VoceChat, for
+      example https://chat.example.com. VoceChat puts this address in the
+      invite and sign-in links it creates, so set it if those links point to
+      the wrong place. Leave empty if you only use VoceChat on your home
+      network.
+  ssl:
+    name: Use HTTPS
+    description: >-
+      Encrypt connections to VoceChat using the certificate files below
+      (the same ones Home Assistant uses, e.g. from the Let's Encrypt
+      add-on). Leave off if you don't have certificates, or if another
+      add-on such as NGINX or Cloudflare already handles HTTPS for you.
+  certfile:
+    name: Certificate file
+    description: >-
+      Name of the certificate file in Home Assistant's /ssl folder. The
+      default (fullchain.pem) matches the Let's Encrypt add-on. Only used
+      when Use HTTPS is on.
+  keyfile:
+    name: Private key file
+    description: >-
+      Name of the private key file in Home Assistant's /ssl folder. The
+      default (privkey.pem) matches the Let's Encrypt add-on. Only used when
+      Use HTTPS is on.
+network:
+  3000/tcp: >-
+    Port for the VoceChat website and apps. Open http://<your Home Assistant
+    address>:3000 to use it.

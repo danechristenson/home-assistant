@@ -2,33 +2,62 @@ configuration:
   server_name:
     name: Server name
     description: >-
-      PERMANENT - cannot be changed after the first start. The domain part of
-      every user ID (e.g. example.com gives @you:example.com). Changing it later
-      requires wiping all Matrix data.
+      PERMANENT - this cannot be changed after the first start. It becomes
+      the last part of everyone's username, the way an email address ends in
+      @gmail.com: a server name of example.com gives usernames like
+      @alex:example.com. Use a domain you own if you might ever want to chat
+      with people on other Matrix servers; otherwise any name works, such as
+      home.lan.
   homeserver_url:
-    name: Homeserver URL
+    name: Server address
     description: >-
-      URL Element and Matrix apps use to reach the server, e.g.
-      https://matrix.example.com. Defaults to http://<server name>:8008.
-      Must be HTTPS if you open Home Assistant over HTTPS.
+      The address the chat apps use to connect, for example
+      http://192.168.1.10:8008 at home or https://matrix.example.com from
+      anywhere. This is what you type into the Element app on your phone.
+      Leave empty to use http://<server name>:8008. If you open Home
+      Assistant with https://, this must also start with https:// or the
+      chat in the sidebar can't connect.
   registration_token:
-    name: Registration token
+    name: Sign-up code
     description: >-
-      Shared token required to create an account. Leave empty to only allow
-      tokens issued by the admin.
+      A permanent code anyone can use to create an account. Best left empty:
+      instead, create single-use invite codes in the admin room and share
+      them with the Invite people page (Element home screen in the sidebar).
   allow_federation:
-    name: Allow federation
+    name: Connect to other Matrix servers
     description: >-
-      Let users talk to people on other Matrix servers. Needs a public domain
-      with valid HTTPS. Avoid turning it off again once enabled.
+      Lets your users chat with people who have accounts on other Matrix
+      servers, such as matrix.org. Leave off for a private server just for
+      your household or group. Turning it on needs a public web address with
+      HTTPS, and you shouldn't turn it back off afterwards.
+  ingress_autologin:
+    name: Sign in from the sidebar automatically
+    description: >-
+      When someone opens Element in the Home Assistant sidebar, sign them in
+      automatically with a Matrix account named after their Home Assistant
+      username (created the first time). Friends without Home Assistant
+      accounts are not affected. Not available while Use HTTPS is on.
   ssl:
-    name: Use SSL
-    description: Serve the Matrix API over HTTPS using the certificate below.
+    name: Use HTTPS
+    description: >-
+      Encrypt connections to the server using the certificate files below
+      (the same ones Home Assistant uses, e.g. from the Let's Encrypt
+      add-on). A reverse proxy such as NGINX Proxy Manager is recommended
+      instead, and is needed for sidebar sign-in. Leave off if a proxy
+      already handles HTTPS for you.
   certfile:
     name: Certificate file
-    description: Certificate file in /ssl. Only used when SSL is enabled.
+    description: >-
+      Name of the certificate file in Home Assistant's /ssl folder. The
+      default (fullchain.pem) matches the Let's Encrypt add-on. Only used
+      when Use HTTPS is on.
   keyfile:
     name: Private key file
-    description: Private key file in /ssl. Only used when SSL is enabled.
+    description: >-
+      Name of the private key file in Home Assistant's /ssl folder. The
+      default (privkey.pem) matches the Let's Encrypt add-on. Only used when
+      Use HTTPS is on.
 network:
-  8008/tcp: Matrix client API (point Matrix apps here)
+  8008/tcp: >-
+    Port the chat apps (Element on phones and computers) connect to. Use this
+    in the Server address setting, e.g. http://192.168.1.10:8008.

@@ -1,19 +1,23 @@
 # Home Assistant Add-on: Matrix
 
-Matrix chat server (Continuwuity) with the Element web client.
+Private, encrypted group chat on Home Assistant, using the Element app.
 
 ![Supports amd64 Architecture][amd64-shield]
 ![Supports aarch64 Architecture][aarch64-shield]
 
-[Matrix](https://matrix.org) is an open, end-to-end encrypted chat protocol.
-This add-on runs [Continuwuity](https://continuwuity.org), a lightweight
-Matrix homeserver written in Rust, and serves the
-[Element](https://element.io) web client in the Home Assistant sidebar.
+A chat app, similar to Slack or WhatsApp groups, that runs on your own Home
+Assistant machine instead of someone else's servers. Messages are end-to-end
+encrypted, so only the people in a conversation can read them.
 
-- No user or message limits
-- End-to-end encrypted rooms and direct messages
-- Works with Element and any other Matrix app on iOS, Android and desktop
-- Private to your server by default, with optional federation
+- Chat in the Home Assistant sidebar, or with the free
+  [Element](https://element.io/download) app on iPhone, Android and computers
+- Group rooms, direct messages, file and photo sharing, voice messages
+- No limits on users or message history
+- Private to your household by default; can optionally connect to other
+  [Matrix](https://matrix.org) servers so you can chat with people elsewhere
+
+Under the hood this runs [Continuwuity](https://continuwuity.org), a
+lightweight Matrix server.
 
 See the **Documentation** tab for installation and configuration details.
 

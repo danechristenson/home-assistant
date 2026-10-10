@@ -52,6 +52,28 @@ when `ssl` is enabled. Default: `fullchain.pem`.
 The private key file, relative to `/ssl`. Only used when `ssl` is enabled.
 Default: `privkey.pem`.
 
+## Access from outside your home
+
+To let people connect from anywhere, put VoceChat behind a reverse proxy
+such as the **NGINX Proxy Manager** add-on rather than forwarding port 3000:
+
+1. Add a proxy host, e.g. `chat.example.com` →
+   `http://<Home Assistant IP>:3000`, with **Websockets support**, **Force
+   SSL**, **HSTS** and **Block common exploits** turned on.
+2. Under **Advanced**, add the following. VoceChat streams new messages over a
+   long-lived connection that must not be buffered, and this also allows
+   larger file uploads:
+
+   ```nginx
+   proxy_buffering off;
+   proxy_read_timeout 1h;
+   client_max_body_size 100m;
+   ```
+
+3. Forward only port 443 on your router to the proxy.
+4. In this add-on, leave `ssl` off and set `frontend_url` to
+   `https://chat.example.com` so invite links use the public address.
+
 ## Network
 
 | Port | Description |

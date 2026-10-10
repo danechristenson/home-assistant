@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Element</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #17191c; --muted: #737d8c; --accent: #0dbd8b; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #15191e; --fg: #ebeef2; --muted: #a9b2bc; } }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--fg);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 420px; padding: 24px; text-align: center; }
+  p { color: var(--muted); }
+  button { margin: 6px; padding: 9px 18px; border-radius: 8px; border: 1px solid var(--accent); cursor: pointer;
+           font: inherit; background: var(--accent); color: #fff; }
+  button.secondary { background: transparent; color: var(--accent); }
+  a.button { display: inline-block; margin: 6px; padding: 9px 18px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; }
+  strong { color: var(--fg); }
+  [hidden] { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h2 id="title">Signing you in&hellip;</h2>
+  <p id="message"></p>
+  <div id="setup" hidden>
+    <p>This is a new Matrix server. Create its admin account first, using the username
+       <strong id="setup-username"></strong> so Home Assistant can sign you in to it automatically.</p>
+    <a class="button" id="setup-link" target="_blank" rel="noopener">Create admin account</a>
+    <button class="secondary" onclick="location.reload()">I've created it</button>
+  </div>
+  <div id="actions" hidden>
+    <button id="switch">Switch account</button>
+    <button id="continue" class="secondary">Keep current account</button>
+  </div>
+</main>
+<script>
+  const element = () => location.replace("element/");
+
+  function show(title, message) {
+    document.getElementById("title").textContent = title;
+    document.getElementById("message").textContent = message;
+  }
+
+  // Forget any Element session in this browser (Element keeps tokens in
+  // localStorage and in its "matrix-*" IndexedDB databases)
+  async function forgetElementSession() {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith("mx_")) localStorage.removeItem(key);
+    }
+    let names = ["matrix-react-sdk", "matrix-js-sdk::matrix-sdk-crypto", "matrix-js-sdk:riot-web-sync", "matrix-js-sdk:crypto"];
+    try {
+      names = names.concat((await indexedDB.databases()).map((db) => db.name));
+    } catch (e) { /* older browsers: fall back to the known names */ }
+    await Promise.all(
+      [...new Set(names)]
+        .filter((name) => name && name.startsWith("matrix-"))
+        .map((name) => new Promise((done) => {
+          const request = indexedDB.deleteDatabase(name);
+          request.onsuccess = request.onerror = request.onblocked = done;
+        })),
+    );
+  }
+
+  async function signIn(me) {
+    await forgetElementSession();
+    const session = await fetch("cgi-bin/session", { method: "POST" }).then((r) => r.json());
+    if (session.error) throw new Error(session.error);
+    if (session.setup_url) return location.reload();
+
+    localStorage.setItem("mx_hs_url", session.homeserver_url);
+    localStorage.setItem("mx_user_id", session.user_id);
+    localStorage.setItem("mx_device_id", session.device_id);
+    localStorage.setItem("mx_access_token", session.access_token);
+    localStorage.setItem("mx_has_access_token", "true");
+    localStorage.setItem("mx_is_guest", "false");
+
+    if (session.created && me.display_name) {
+      // New account: use the Home Assistant display name instead of the username
+      await fetch(`${session.homeserver_url}/_matrix/client/v3/profile/${encodeURIComponent(session.user_id)}/displayname`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ displayname: me.display_name }),
+      }).catch(() => {});
+    }
+    element();
+  }
+
+  async function main() {
+    const me = await fetch("cgi-bin/session").then((r) => r.json());
+    if (!me.enabled) return element();
+    if (me.error) throw new Error(me.error);
+    if (me.setup_url) {
+      show("Set up your Matrix server", "");
+      document.getElementById("setup-username").textContent = me.localpart;
+      document.getElementById("setup-link").href = me.setup_url;
+      document.getElementById("setup").hidden = false;
+      return;
+    }
+
+    const current = localStorage.getItem("mx_user_id");
+    if (current === me.user_id) return element();
+    if (!current) return signIn(me);
+
+    // Someone else is signed in to Element in this browser
+    show("Different Matrix account",
+      `Element is signed in as ${current} in this browser. Switch to ${me.user_id}? ` +
+      "Switching signs out the other account here; it stays signed in on other devices.");
+    document.getElementById("actions").hidden = false;
+    document.getElementById("continue").onclick = element;
+    document.getElementById("switch").onclick = () => {
+      document.getElementById("actions").hidden = true;
+      show("Signing you in…", "");
+      signIn(me).catch(fail);
+    };
+  }
+
+  function fail(error) {
+    show("Couldn't sign you in automatically", `${error.message} Opening the normal sign-in page…`);
+    setTimeout(element, 4000);
+  }
+
+  main().catch(fail);
+</script>
+</body>
+</html>
