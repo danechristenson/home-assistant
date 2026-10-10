@@ -1,5 +1,11 @@
 # Changelog
 
+## 26.9.1.3
+
+- Fix "Missing option" errors when saving settings after updating from an
+  earlier version: newer options are now optional and fall back to their
+  defaults.
+
 ## 26.9.1.2
 
 - Option to use the new Matrix Call Relay add-on for voice and video calls

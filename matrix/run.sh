@@ -71,7 +71,10 @@ fi
 # Home Assistant ingress autologin: an appservice that may log in as any
 # local user. The token never leaves the container; turning the option off
 # forgets it, which leaves the registered appservice unusable.
+# Options added after the first release are optional in the schema, so
+# settings saved by older versions still validate; fall back to the defaults
 AUTOLOGIN=$(option ingress_autologin)
+AUTOLOGIN=${AUTOLOGIN:-true}
 if [ "$AUTOLOGIN" = "true" ] && [ "$SCHEME" = "https" ]; then
     # busybox's TLS client cannot talk to Continuwuity's TLS listener
     echo "[WARN] Sidebar autologin is not available while 'Use HTTPS' is on." >&2
