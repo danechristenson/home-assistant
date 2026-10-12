@@ -31,7 +31,7 @@ Read [Before you forward ports](https://github.com/danechristenson/home-assistan
 
      ```nginx
      location ~ ^/(sfu/get|healthz|get_token) {
-         proxy_pass http://<Home Assistant IP>:8081;
+         proxy_pass http://<Home Assistant IP>:7883;
      }
      ```
 
@@ -60,7 +60,7 @@ Your Matrix add-on's server name. Only accounts on it can start calls.
 | Piece | Port | Reached by |
 | ----- | ---- | ---------- |
 | LiveKit signalling | 7880/tcp | Your reverse proxy only |
-| Call sign-in service (lk-jwt-service) | 8081/tcp | Your reverse proxy only |
+| Call sign-in service (lk-jwt-service) | 7883/tcp | Your reverse proxy only |
 | Call audio and video | 7881/tcp, 7882/udp | The internet (router forwards) |
 
 When someone joins a call, their app asks your Matrix server for a short-lived
@@ -85,7 +85,7 @@ admits them to that room's call only.
 | Port | Description |
 | ---- | ----------- |
 | 7880/tcp | LiveKit signalling (reverse proxy only; don't forward) |
-| 8081/tcp | Call sign-in service (reverse proxy only; don't forward) |
+| 7883/tcp | Call sign-in service (reverse proxy only; don't forward) |
 | 7881/tcp | Call audio and video over TCP (forward on the router) |
 | 7882/udp | Call audio and video over UDP (forward on the router) |
 

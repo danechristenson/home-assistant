@@ -1,5 +1,5 @@
 name: Matrix Group Calls
-version: "1.13.9"
+version: "1.13.9.1"
 slug: matrix_group_calls
 description: Group voice and video calls with screen sharing for the Matrix add-on
 url: https://github.com/danechristenson/home-assistant/tree/main/matrix_group_calls
@@ -13,12 +13,12 @@ map:
   - share:rw
 ports:
   7880/tcp: 7880
-  8081/tcp: 8081
+  7883/tcp: 7883
   7881/tcp: 7881
   7882/udp: 7882
 ports_description:
   7880/tcp: LiveKit signalling (point the reverse proxy here; don't forward)
-  8081/tcp: Call sign-in service (point the reverse proxy here; don't forward)
+  7883/tcp: Call sign-in service (point the reverse proxy here; don't forward)
   7881/tcp: Call media over TCP (forward on the router)
   7882/udp: Call media over UDP (forward on the router)
 options:

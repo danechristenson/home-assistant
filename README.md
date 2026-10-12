@@ -45,7 +45,7 @@ to it. Matrix and VoceChat both go behind it; their docs explain how.
 | ---- | --- |
 | 8008 (Matrix), 3000 (VoceChat) | Unencrypted unless the add-on's own HTTPS is on. Use the reverse proxy instead. |
 | 8123 (Home Assistant) | Your whole home's controls. Use a VPN (many routers, e.g. GL.iNet, have WireGuard built in) or Home Assistant Cloud. If you must expose it, put it behind the proxy and turn on multi-factor authentication for every user. |
-| 7880, 8081 (Matrix Group Calls) | Reached through the reverse proxy over HTTPS, never directly. |
+| 7880, 7883 (Matrix Group Calls) | Reached through the reverse proxy over HTTPS, never directly. |
 | 81 (NGINX Proxy Manager admin) | Controls all your proxy hosts and certificates. |
 | 22, 445, 139, 1883 and other admin or file-sharing ports | SSH, Samba and MQTT are for your home network only. |
 | Your router's admin page | Turn off remote administration in the router settings. |
@@ -55,7 +55,7 @@ when you use them:
 
 | Add-on | Forward |
 | ------ | ------- |
-| Matrix Group Calls | 7881 TCP, 7882 UDP (never 7880 or 8081: those go through the reverse proxy) |
+| Matrix Group Calls | 7881 TCP, 7882 UDP (never 7880 or 7883: those go through the reverse proxy) |
 | Matrix Call Relay | 3478 TCP and UDP, 49160-49179 UDP |
 
 Remove forwards for add-ons you uninstall.

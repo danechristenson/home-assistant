@@ -14,7 +14,7 @@ network:
   7880/tcp: >-
     LiveKit signalling. Point the reverse proxy here; don't forward it on the
     router.
-  8081/tcp: >-
+  7883/tcp: >-
     Call sign-in service. Point the reverse proxy's /sfu/get, /healthz and
     /get_token paths here; don't forward it on the router.
   7881/tcp: Call audio and video over TCP. Forward this on your router.
