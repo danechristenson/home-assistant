@@ -57,6 +57,10 @@ Your Matrix add-on's server name. Only accounts on it can start calls.
 
 ## How it fits together
 
+The add-on uses the host network: LiveKit offers your home-network address
+to devices at home (so they connect directly) and your public IP to everyone
+else. Only home addresses in 192.168.0.0/16 and 10.0.0.0/8 are offered.
+
 | Piece | Port | Reached by |
 | ----- | ---- | ---------- |
 | LiveKit signalling | 7880/tcp | Your reverse proxy only |

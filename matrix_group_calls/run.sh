@@ -53,6 +53,20 @@ rtc:
   enable_loopback_candidate: false
 YAML
 )
+    # Offer the home-network address too, so devices at home connect directly
+    # instead of looping out through the router and back (NAT loopback drops
+    # UDP and turns video into blocks). Only private LAN ranges: Docker and
+    # Home Assistant's internal networks (172.16.0.0/12) aren't reachable.
+    # Without such an address LiveKit refuses to start, so check first.
+    if [ -n "$LAN_IPS" ]; then
+        cat >> "$CONFIG" <<YAML
+  advertise_internal_ip: true
+  ips:
+    includes:
+      - 192.168.0.0/16
+      - 10.0.0.0/8
+YAML
+    fi
     if [ -n "$PUBLIC_IP" ]; then
         printf '  use_external_ip: false\n  node_ip: %s\n' "$PUBLIC_IP" >> "$CONFIG"
         echo "[INFO] Group calls running at https://$DOMAIN (public IP $PUBLIC_IP)"
@@ -92,6 +106,14 @@ shutdown() {
     exit 0
 }
 trap shutdown TERM INT
+
+LAN_IPS=$(ip -4 -o addr show 2>/dev/null \
+    | awk '{ sub(/\/.*/, "", $4); print $4 }' | grep -E '^(192\.168|10)\.' | tr '\n' ' ')
+if [ -n "$LAN_IPS" ]; then
+    echo "[INFO] Offering home-network address(es) to devices at home: $LAN_IPS"
+else
+    echo "[WARN] No home-network address (192.168.x.x or 10.x.x.x) found; devices at home will connect through your public IP." >&2
+fi
 
 PUBLIC_IP=$(lookup_public_ip)
 write_config

@@ -1,5 +1,5 @@
 name: Matrix Group Calls
-version: "1.13.9.1"
+version: "1.13.9.2"
 slug: matrix_group_calls
 description: Group voice and video calls with screen sharing for the Matrix add-on
 url: https://github.com/danechristenson/home-assistant/tree/main/matrix_group_calls
@@ -9,6 +9,9 @@ arch:
 init: false
 startup: services
 boot: auto
+# Host networking: LiveKit must see the home-network address to offer it to
+# devices at home, and media then skips Docker's port forwarding
+host_network: true
 map:
   - share:rw
 ports:
