@@ -1,5 +1,10 @@
 # Changelog
 
+## 26.9.1.8
+
+- The sidebar launcher is no longer cached by browsers, so fixes reach
+  phones and the Home Assistant app right after an update.
+
 ## 26.9.1.7
 
 - Element in the sidebar now opens on phones (including the Home Assistant
