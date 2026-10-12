@@ -1,5 +1,5 @@
 name: Matrix
-version: "26.9.1.6"
+version: "26.9.1.7"
 slug: matrix
 description: Private, encrypted group chat on Home Assistant, using the Element app
 url: https://github.com/danechristenson/home-assistant/tree/main/matrix

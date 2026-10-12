@@ -1,5 +1,10 @@
 # Changelog
 
+## 26.9.1.7
+
+- Element in the sidebar now opens on phones (including the Home Assistant
+  app) instead of redirecting to a "get the Element X app" page.
+
 ## 26.9.1.6
 
 - Show Element in the sidebar for all Home Assistant users, not only admins,

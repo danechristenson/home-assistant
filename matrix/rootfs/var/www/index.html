@@ -35,7 +35,12 @@
   </div>
 </main>
 <script>
-  const element = () => location.replace("element/");
+  // Element Web sends phones to a "get the app" page unless the session opts
+  // out or the URL is a deep link; inside Home Assistant it should just open
+  const element = () => {
+    try { sessionStorage.setItem("skip_mobile_redirect", "true"); } catch (e) { /* private mode */ }
+    location.replace("element/#/home");
+  };
 
   function show(title, message) {
     document.getElementById("title").textContent = title;

@@ -283,6 +283,7 @@ cat > "$WEBROOT/element/config.json" <<JSON
     "disable_guests": true,
     "brand": "Element",
     "show_labs_settings": false,
+    "mobile_guide_toast": false,
     "embedded_pages": {
         "home_url": "home.html"
     }
