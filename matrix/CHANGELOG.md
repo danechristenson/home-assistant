@@ -1,5 +1,10 @@
 # Changelog
 
+## 26.9.1.9
+
+- Profiles (display names and avatars) now require signing in, so they can't
+  be looked up by anyone on the internet.
+
 ## 26.9.1.8
 
 - The sidebar launcher is no longer cached by browsers, so fixes reach

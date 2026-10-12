@@ -94,6 +94,8 @@ port = 8008
 allow_federation = $( [ "$CALLS_ONLY_FEDERATION" = "true" ] && echo true || echo "$FEDERATION" )
 allow_registration = true
 new_user_displayname_suffix = ""
+# Profiles (display names, avatars) only for signed-in users, not scrapers
+require_auth_for_profile_requests = true
 TOML
 
 if [ "$(option registration_token)" != '""' ]; then
