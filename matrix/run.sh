@@ -47,6 +47,32 @@ if [ -f /data/server_name ]; then
     fi
 fi
 
+# Group calls (Matrix Group Calls add-on): its lk-jwt-service checks callers
+# through the federation API, which Continuwuity only serves with federation
+# on (continuwuity issue 1440). So with group calls on and federation off,
+# federation is switched on with every remote server forbidden.
+CALLS_CONF=/share/matrix-group-calls/calls.conf
+LIVEKIT_SERVICE_URL=
+if [ "$(option group_calls)" = "true" ]; then
+    LIVEKIT_SERVICE_URL=$(sed -nE 's#^livekit_service_url=(https://[A-Za-z0-9.-]+)$#\1#p' "$CALLS_CONF" 2>/dev/null || true)
+    if [ -z "$LIVEKIT_SERVICE_URL" ]; then
+        if [ -e "$CALLS_CONF" ]; then
+            echo "[WARN] 'Group calls' is on, but $CALLS_CONF is unreadable or invalid." >&2
+            echo "[WARN] Restart the Matrix Group Calls add-on, then this one." >&2
+        else
+            echo "[WARN] 'Group calls' is on, but the Matrix Group Calls add-on isn't running." >&2
+            echo "[WARN] Install and start it, then restart this add-on." >&2
+        fi
+    fi
+fi
+
+FEDERATION=$(option allow_federation)
+FEDERATION=${FEDERATION:-false}
+CALLS_ONLY_FEDERATION=false
+if [ -n "$LIVEKIT_SERVICE_URL" ] && [ "$FEDERATION" != "true" ]; then
+    CALLS_ONLY_FEDERATION=true
+fi
+
 if [ "$(option ssl)" = "true" ]; then
     SCHEME=https
 else
@@ -65,7 +91,7 @@ server_name = $(option server_name)
 database_path = "/data/database"
 address = ["0.0.0.0"]
 port = 8008
-allow_federation = $(option allow_federation)
+allow_federation = $( [ "$CALLS_ONLY_FEDERATION" = "true" ] && echo true || echo "$FEDERATION" )
 allow_registration = true
 new_user_displayname_suffix = ""
 TOML
@@ -112,7 +138,9 @@ while IFS= read -r server; do
 done <<LIST
 $(option_list federation_allowed_servers)
 LIST
-if [ "$(option allow_federation)" = "true" ] && [ -n "$FEDERATION_ALLOWED" ]; then
+if [ "$CALLS_ONLY_FEDERATION" = "true" ]; then
+    echo 'forbidden_remote_server_names = [".*"]' >> "$CONFIG"
+elif [ "$FEDERATION" = "true" ] && [ -n "$FEDERATION_ALLOWED" ]; then
     cat >> "$CONFIG" <<TOML
 forbidden_remote_server_names = [".*"]
 allowed_remote_server_names = [$FEDERATION_ALLOWED]
@@ -216,7 +244,7 @@ TOML
 
 # Other servers find this one through /.well-known/matrix/server, so
 # federation works through the reverse proxy on 443 without opening 8448
-if [ "$(option allow_federation)" = "true" ]; then
+if [ "$FEDERATION" = "true" ] || [ "$CALLS_ONLY_FEDERATION" = "true" ]; then
     case "$HOMESERVER_URL" in
         https://*)
             FEDERATION_HOST=$(printf '%s' "$HOMESERVER_URL" | sed -E 's#^https://##; s#/.*##')
@@ -227,6 +255,19 @@ if [ "$(option allow_federation)" = "true" ]; then
             echo "[WARN] Federation needs an https:// homeserver_url; other servers won't be able to reach this one." >&2
             ;;
     esac
+fi
+
+# Tell clients where the group call service is (MatrixRTC / Element Call)
+if [ -n "$LIVEKIT_SERVICE_URL" ]; then
+    cat >> "$CONFIG" <<TOML
+
+[global.matrix_rtc]
+foci = [{ type = "livekit", livekit_service_url = "$LIVEKIT_SERVICE_URL" }]
+TOML
+    echo "[INFO] Group calls through $LIVEKIT_SERVICE_URL"
+    if [ "$CALLS_ONLY_FEDERATION" = "true" ]; then
+        echo "[INFO] Federation is on for group calls only; all other servers are blocked"
+    fi
 fi
 
 # Element Web, pinned to this homeserver
@@ -262,7 +303,7 @@ if [ -n "$CONTACT" ]; then
 else
     CONTACT_HTML="Contact the person who invited your child."
 fi
-if [ "$(option allow_federation)" != "true" ]; then
+if [ "$FEDERATION" != "true" ]; then
     FEDERATION_HTML="<strong>No strangers.</strong> The server isn't connected to other Matrix servers, so accounts here can only talk to other people with accounts on this server."
 elif [ -n "$FEDERATION_ALLOWED" ]; then
     FEDERATION_HTML="<strong>Limited connections.</strong> Besides people on this server, accounts can only reach people on a few approved Matrix servers."

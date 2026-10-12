@@ -1,0 +1,21 @@
+configuration:
+  domain:
+    name: Public address
+    description: >-
+      Hostname for the call service, e.g. livekit.example.com. Your reverse
+      proxy serves it over HTTPS, and it must point to your home's public IP
+      in public DNS.
+  matrix_server_name:
+    name: Matrix server name
+    description: >-
+      The Matrix add-on's server name, e.g. matrix.example.com. Only accounts
+      on this server can start calls.
+network:
+  7880/tcp: >-
+    LiveKit signalling. Point the reverse proxy here; don't forward it on the
+    router.
+  8081/tcp: >-
+    Call sign-in service. Point the reverse proxy's /sfu/get, /healthz and
+    /get_token paths here; don't forward it on the router.
+  7881/tcp: Call audio and video over TCP. Forward this on your router.
+  7882/udp: Call audio and video over UDP. Forward this on your router.

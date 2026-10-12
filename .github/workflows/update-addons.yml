@@ -1,6 +1,6 @@
 name: Update add-ons
 
-# Daily: bump the Matrix and Matrix Call Relay add-ons to the latest upstream
+# Daily: bump the Matrix add-ons to the latest upstream
 # releases, build and smoke-test them, and commit to main only if they pass.
 # Home Assistant then offers the update (or installs it, with Auto update on).
 
@@ -40,6 +40,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add matrix matrix_call_relay
+          git add matrix matrix_call_relay matrix_group_calls
           git commit -m "chore: update ${{ steps.check.outputs.changed }} to latest upstream releases"
           git push

@@ -24,6 +24,7 @@ Or click the button above to add the repository in one step.
 | Add-on | Description |
 | ------ | ----------- |
 | [Matrix](./matrix) | Private, encrypted group chat on Home Assistant, using the Element app |
+| [Matrix Group Calls](./matrix_group_calls) | Companion to Matrix: group voice and video calls with screen sharing. Optional; needs a reverse proxy and router port forwards. |
 | [Matrix Call Relay](./matrix_call_relay) | Companion to Matrix: lets voice and video calls connect between different networks. Optional; needs router port forwards. |
 | [VoceChat](./vocechat) | Private group chat for your family or team, hosted on Home Assistant |
 
@@ -44,13 +45,20 @@ to it. Matrix and VoceChat both go behind it; their docs explain how.
 | ---- | --- |
 | 8008 (Matrix), 3000 (VoceChat) | Unencrypted unless the add-on's own HTTPS is on. Use the reverse proxy instead. |
 | 8123 (Home Assistant) | Your whole home's controls. Use a VPN (many routers, e.g. GL.iNet, have WireGuard built in) or Home Assistant Cloud. If you must expose it, put it behind the proxy and turn on multi-factor authentication for every user. |
+| 7880, 8081 (Matrix Group Calls) | Reached through the reverse proxy over HTTPS, never directly. |
 | 81 (NGINX Proxy Manager admin) | Controls all your proxy hosts and certificates. |
 | 22, 445, 139, 1883 and other admin or file-sharing ports | SSH, Samba and MQTT are for your home network only. |
 | Your router's admin page | Turn off remote administration in the router settings. |
 
-**Only forward what you use.** The Matrix Call Relay needs its own ports
-(3478 and 49160-49179); forward them only if you need calls with people
-outside your home, and remove forwards for add-ons you uninstall.
+**Only forward what you use.** Some add-ons need their own ports, and only
+when you use them:
+
+| Add-on | Forward |
+| ------ | ------- |
+| Matrix Group Calls | 7881 TCP, 7882 UDP (never 7880 or 8081: those go through the reverse proxy) |
+| Matrix Call Relay | 3478 TCP and UDP, 49160-49179 UDP |
+
+Remove forwards for add-ons you uninstall.
 
 **Keep internet-facing add-ons updated.** Security fixes only reach you when
 you update.

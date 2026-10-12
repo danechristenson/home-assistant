@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Bump the Matrix and Matrix Call Relay add-ons to the latest upstream releases.
+"""Bump the Matrix add-ons to the latest upstream releases.
 
-Checks Continuwuity, Element Web, qrcode-generator and coturn. For each add-on
+Checks Continuwuity, Element Web, qrcode-generator, coturn, LiveKit and
+lk-jwt-service. For each add-on
 whose dependencies changed, updates build.yaml, the add-on version and the
 changelog, then prints the changed add-on folders (one per line) for the
 workflow to build and test.
@@ -80,6 +81,18 @@ def latest_coturn(current):
     return same_major(versions, current)
 
 
+def latest_livekit():
+    tag = get_json("https://api.github.com/repos/livekit/livekit/releases/latest")["tag_name"]
+    tags = get_json("https://hub.docker.com/v2/repositories/livekit/livekit-server/tags?page_size=50&ordering=last_updated")
+    published = {t["name"] for t in tags["results"]}
+    return tag if tag in published else None
+
+
+def latest_lk_jwt():
+    tag = get_json("https://api.github.com/repos/element-hq/lk-jwt-service/releases/latest")["tag_name"].lstrip("v")
+    return tag if ghcr_tag_exists("element-hq/lk-jwt-service", tag) else None
+
+
 def read_value(text, pattern):
     match = re.search(pattern, text, re.M)
     if not match:
@@ -155,12 +168,46 @@ def update_relay():
     return True
 
 
+def update_group_calls():
+    build = ROOT / "matrix_group_calls" / "build.yaml"
+    text = build.read_text()
+    current = {
+        "livekit": read_value(text, r"livekit-server:(v[\d.]+)$"),
+        "lk_jwt": read_value(text, r"LK_JWT_VERSION: (\S+)$"),
+    }
+    latest = {"livekit": latest_livekit() or current["livekit"], "lk_jwt": latest_lk_jwt() or current["lk_jwt"]}
+    changes = {k: (current[k], latest[k]) for k in current if version_key(latest[k]) > version_key(current[k])}
+    if not changes:
+        return False
+
+    text = text.replace(f"livekit-server:{current['livekit']}", f"livekit-server:{latest['livekit']}")
+    text = text.replace(f"LK_JWT_VERSION: {current['lk_jwt']}", f"LK_JWT_VERSION: {latest['lk_jwt']}")
+    build.write_text(text)
+
+    addon_version = read_value((ROOT / "matrix_group_calls" / "config.yaml").read_text(), r'^version: "(.*)"$')
+    if "livekit" in changes:
+        new_version = latest["livekit"].lstrip("v")
+    else:
+        parts = addon_version.split(".")
+        parts = parts + ["0"] if len(parts) == 3 else parts
+        parts[3] = str(int(parts[3]) + 1)
+        new_version = ".".join(parts)
+    set_addon_version("matrix_group_calls", new_version)
+
+    names = {"livekit": "LiveKit", "lk_jwt": "lk-jwt-service"}
+    add_changelog_entry("matrix_group_calls", new_version, [f"Update {names[k]} {old} → {new}." for k, (old, new) in changes.items()])
+    print(f"matrix_group_calls: {addon_version} -> {new_version} ({', '.join(changes)})", file=sys.stderr)
+    return True
+
+
 def main():
     changed = []
     if update_matrix():
         changed.append("matrix")
     if update_relay():
         changed.append("matrix_call_relay")
+    if update_group_calls():
+        changed.append("matrix_group_calls")
     print("\n".join(changed))
     print(f"Checked {date.today()}: {', '.join(changed) or 'everything up to date'}", file=sys.stderr)
 

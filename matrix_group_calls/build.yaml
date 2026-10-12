@@ -1,0 +1,5 @@
+build_from:
+  amd64: livekit/livekit-server:v1.13.9
+  aarch64: livekit/livekit-server:v1.13.9
+args:
+  LK_JWT_VERSION: 0.8.0

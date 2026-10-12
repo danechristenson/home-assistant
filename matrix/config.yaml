@@ -1,5 +1,5 @@
 name: Matrix
-version: "26.9.1.4"
+version: "26.9.1.5"
 slug: matrix
 description: Private, encrypted group chat on Home Assistant, using the Element app
 url: https://github.com/danechristenson/home-assistant/tree/main/matrix
@@ -29,6 +29,7 @@ options:
   allow_federation: false
   ingress_autologin: true
   call_relay: false
+  group_calls: false
   lockdown_room_directory: true
   allow_room_creation: true
   auto_join_rooms: []
@@ -44,6 +45,7 @@ schema:
   allow_federation: bool
   ingress_autologin: bool?
   call_relay: bool?
+  group_calls: bool?
   lockdown_room_directory: bool?
   allow_room_creation: bool?
   auto_join_rooms:

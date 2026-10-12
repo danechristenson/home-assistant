@@ -65,6 +65,15 @@ EOF
         docker logs "$NAME" 2>&1 | grep -q "Call relay running" || fail "relay did not start"
         docker exec "$NAME" sh -c 'ps -o user,args | grep "[t]urnserver" | grep -q "^nobody"' || fail "relay not running as nobody"
         ;;
+    matrix_group_calls)
+        echo '{"domain": "livekit.example.com", "matrix_server_name": "matrix.example.com"}' > "$DATA/options.json"
+        mkdir -p "$DATA/share"
+        docker run -d --name "$NAME" -p 17880:7880 -p 18081:8081 -v "$DATA:/data:z" -v "$DATA/share:/share:z" "$IMAGE" > /dev/null
+        wait_for http://localhost:17880/ || fail "LiveKit did not respond"
+        wait_for http://localhost:18081/healthz || fail "lk-jwt-service did not respond"
+        grep -q '^livekit_service_url=https://livekit.example.com$' "$DATA/share/matrix-group-calls/calls.conf" \
+            || fail "call service not shared with the Matrix add-on"
+        ;;
     *)
         fail "no smoke test for $ADDON"
         ;;

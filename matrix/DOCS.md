@@ -123,6 +123,28 @@ location = / {
 
 Only the front page goes to 8010; Matrix keeps working as before.
 
+## Group calls and screen sharing
+
+Group voice and video calls, including screen sharing, use Element Call. It
+needs the separate **Matrix Group Calls** add-on, which runs a LiveKit media
+server.
+
+1. Install **Matrix Group Calls**, set it up and start it (see its
+   Documentation tab).
+2. Turn on `group_calls` here and restart this add-on. The log shows
+   `Group calls through https://...`.
+3. In Element (sidebar, desktop or Element X on phones), start a call in a
+   room with more than two people, or use the video call button.
+
+Element X also uses this for one-to-one calls. FluffyChat and classic
+Element use the older one-to-one call system described below.
+
+While Continuwuity issue 1440 is open, group calls need the federation API
+switched on, because the call service checks callers through it. With
+`group_calls` on and `allow_federation` off, the add-on turns federation on
+but forbids **every** other server, so no outside server can connect. The log
+says `Federation is on for group calls only`.
+
 ## Voice and video calls
 
 Calls between people on the same home network work out of the box. When
@@ -151,6 +173,7 @@ registration_token: ""
 allow_federation: false
 ingress_autologin: true
 call_relay: false
+group_calls: false
 lockdown_room_directory: true
 allow_room_creation: true
 auto_join_rooms:
@@ -207,6 +230,12 @@ default.
 
 Use the Matrix Call Relay add-on for voice and video calls (see
 [Voice and video calls](#voice-and-video-calls)). Off by default.
+
+### Option: `group_calls`
+
+Use the Matrix Group Calls add-on for group calls and screen sharing (see
+[Group calls and screen sharing](#group-calls-and-screen-sharing)). Off by
+default.
 
 ### Option: `lockdown_room_directory`
 

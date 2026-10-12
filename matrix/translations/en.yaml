@@ -44,6 +44,13 @@ configuration:
       connect between people on different networks (e.g. a friend on mobile
       data). Install and start that add-on first. Calls on the same home
       network work without it.
+  group_calls:
+    name: Group calls
+    description: >-
+      Use the separate Matrix Group Calls add-on for group voice and video
+      calls with screen sharing (Element and Element X). Install and start
+      that add-on first. Turns federation on for calls only, with every
+      other server blocked.
   lockdown_room_directory:
     name: Only admins publish rooms
     description: >-

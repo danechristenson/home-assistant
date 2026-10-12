@@ -1,5 +1,11 @@
 # Changelog
 
+## 26.9.1.5
+
+- Group voice and video calls with screen sharing through the new Matrix
+  Group Calls add-on (`group_calls`).
+- Update qrcode-generator 1.4.4 → 1.5.2.
+
 ## 26.9.1.4
 
 - Public landing page for parents and invitees on port 8010
