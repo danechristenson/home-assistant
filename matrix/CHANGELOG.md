@@ -1,5 +1,19 @@
 # Changelog
 
+## 26.9.1.4
+
+- Public landing page for parents and invitees on port 8010
+  (`landing_contact`).
+- Room options: `lockdown_room_directory` (only admins publish rooms, on by
+  default), `allow_room_creation` and `auto_join_rooms`. Home Assistant
+  users' accounts, new and existing, join the auto-join rooms when they open
+  Element in the sidebar.
+- Federation allow-list (`federation_allowed_servers`); turning federation on
+  now publishes `/.well-known/matrix/server` so it works through the reverse
+  proxy.
+- The **Invite people** page opens in place with a link back to the chat, so
+  it works in the Home Assistant mobile app.
+
 ## 26.9.1.3
 
 - Fix "Missing option" errors when saving settings after updating from an

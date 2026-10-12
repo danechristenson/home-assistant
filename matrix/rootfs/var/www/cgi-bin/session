@@ -46,10 +46,6 @@ if [ -n "$SETUP_TOKEN" ] && wget -q -O - \
     reply "{\"enabled\":true,$USER_JSON,\"setup_url\":\"$(json_escape "$HOMESERVER_URL")/_continuwuity/account/register/?flow=trusted&token=$SETUP_TOKEN\"}"
 fi
 
-if [ "$REQUEST_METHOD" != "POST" ]; then
-    reply "{\"enabled\":true,$USER_JSON}"
-fi
-
 api() {
     wget -q -O - \
         --header "Authorization: Bearer $AS_TOKEN" \
@@ -57,6 +53,29 @@ api() {
         --post-data "$2" \
         "$INTERNAL_URL$1" 2>/dev/null
 }
+
+# Join this Home Assistant user's account to the auto-join rooms, including
+# accounts that existed before a room was added (the server only does this
+# at registration, and not at all for appservice-created accounts). Runs on
+# every sidebar open, acting as the user through the appservice. Each room is
+# joined once per user, so someone who leaves isn't pulled back in.
+auto_join() {
+    JOINED_FILE="/data/autologin_joined/$LOCALPART"
+    mkdir -p /data/autologin_joined
+    user=$(printf '%s' "$USER_ID" | sed 's/@/%40/g; s/:/%3A/g')
+    for room in $AUTO_JOIN_ROOMS; do
+        grep -qxF "$room" "$JOINED_FILE" 2>/dev/null && continue
+        encoded=$(printf '%s' "$room" | sed 's/#/%23/g; s/!/%21/g; s/:/%3A/g')
+        if api "/_matrix/client/v3/join/$encoded?user_id=$user" '{}' >/dev/null; then
+            echo "$room" >> "$JOINED_FILE"
+        fi
+    done
+}
+
+if [ "$REQUEST_METHOD" != "POST" ]; then
+    auto_join
+    reply "{\"enabled\":true,$USER_JSON}"
+fi
 
 field() {
     printf '%s' "$RESPONSE" | sed -nE "s/.*\"$1\": *\"([^\"]*)\".*/\1/p"
@@ -76,5 +95,7 @@ if ! RESPONSE=$(api /_matrix/client/v3/login "$LOGIN"); then
         reply '{"enabled":true,"error":"Could not sign in to Matrix. Check the add-on log."}'
     fi
 fi
+
+auto_join
 
 reply "{\"enabled\":true,$USER_JSON,\"created\":$CREATED,\"device_id\":\"$(field device_id)\",\"access_token\":\"$(field access_token)\"}"

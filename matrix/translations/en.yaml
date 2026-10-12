@@ -44,6 +44,34 @@ configuration:
       connect between people on different networks (e.g. a friend on mobile
       data). Install and start that add-on first. Calls on the same home
       network work without it.
+  lockdown_room_directory:
+    name: Only admins publish rooms
+    description: >-
+      Only server admins can add rooms ("channels") to the room directory
+      everyone can browse. Everyone can still start one-to-one and private
+      group chats by inviting people.
+  allow_room_creation:
+    name: Let everyone create rooms
+    description: >-
+      Turn off so only admins can create rooms. Careful: this also stops
+      everyone else from starting one-to-one chats, since those are rooms
+      too.
+  auto_join_rooms:
+    name: Rooms new accounts join
+    description: >-
+      Room addresses every new account joins automatically, e.g.
+      #family:matrix.example.com. Create the room first (public, so accounts
+      on this server can join). Existing accounts aren't added.
+  federation_allowed_servers:
+    name: Allowed other servers
+    description: >-
+      Only used when "Connect to other Matrix servers" is on: connect only to
+      these servers, e.g. matrix.org. Leave empty to allow any server.
+  landing_contact:
+    name: Contact on the public page
+    description: >-
+      Who parents and invitees can contact with questions, shown on the page
+      at the server address, e.g. "Alex Smith at alex@example.com".
   ssl:
     name: Use HTTPS
     description: >-
@@ -65,6 +93,9 @@ configuration:
       default (privkey.pem) matches the Let's Encrypt add-on. Only used when
       Use HTTPS is on.
 network:
+  8010/tcp: >-
+    Public landing page that explains the chat. Point your reverse proxy's
+    "/" here; there's no need to forward it on your router.
   8008/tcp: >-
     Port the chat apps (Element on phones and computers) connect to. Use this
     in the Server address setting, e.g. http://192.168.1.10:8008.

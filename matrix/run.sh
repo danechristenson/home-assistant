@@ -18,6 +18,12 @@ option_text() {
     option "$1" | sed -E 's/^"(.*)"$/\1/'
 }
 
+# Print each string of a list option on its own line, still JSON-quoted
+option_list() {
+    sed -nE "s/.*\"$1\": *\[([^]]*)\].*/\1/p" "$OPTIONS" | head -n 1 \
+        | grep -oE '"([^"\\]|\\.)*"' || true
+}
+
 random_token() {
     head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n'
 }
@@ -68,6 +74,51 @@ if [ "$(option registration_token)" != '""' ]; then
     echo "registration_token = $(option registration_token)" >> "$CONFIG"
 fi
 
+# Rooms: only admins publish to the room directory by default. Turning off
+# room creation also stops non-admins starting one-to-one chats.
+ALLOW_ROOM_CREATION=$(option allow_room_creation)
+LOCKDOWN_DIRECTORY=$(option lockdown_room_directory)
+cat >> "$CONFIG" <<TOML
+allow_room_creation = ${ALLOW_ROOM_CREATION:-true}
+lockdown_public_room_directory = ${LOCKDOWN_DIRECTORY:-true}
+TOML
+
+# Rooms every new account joins, e.g. a shared family room
+AUTO_JOIN=
+while IFS= read -r room; do
+    [ -n "$room" ] || continue
+    if printf '%s' "$room" | grep -qE '^"[#!][A-Za-z0-9._=/+-]+:[A-Za-z0-9.:-]+"$'; then
+        AUTO_JOIN="${AUTO_JOIN:+$AUTO_JOIN, }$room"
+    else
+        echo "[WARN] Ignoring auto_join_rooms entry $room: use an address like #family:$SERVER_NAME" >&2
+    fi
+done <<LIST
+$(option_list auto_join_rooms)
+LIST
+if [ -n "$AUTO_JOIN" ]; then
+    echo "auto_join_rooms = [$AUTO_JOIN]" >> "$CONFIG"
+fi
+
+# Federation: when on, optionally only with the listed servers
+FEDERATION_ALLOWED=
+while IFS= read -r server; do
+    [ -n "$server" ] || continue
+    if printf '%s' "$server" | grep -qE '^"[A-Za-z0-9.-]+(:[0-9]+)?"$'; then
+        pattern=$(printf '%s' "$server" | sed -E 's/^"(.*)"$/\1/; s/\./\\\\./g')
+        FEDERATION_ALLOWED="${FEDERATION_ALLOWED:+$FEDERATION_ALLOWED, }\"^$pattern\$\""
+    else
+        echo "[WARN] Ignoring federation_allowed_servers entry $server: use a server name like matrix.org" >&2
+    fi
+done <<LIST
+$(option_list federation_allowed_servers)
+LIST
+if [ "$(option allow_federation)" = "true" ] && [ -n "$FEDERATION_ALLOWED" ]; then
+    cat >> "$CONFIG" <<TOML
+forbidden_remote_server_names = [".*"]
+allowed_remote_server_names = [$FEDERATION_ALLOWED]
+TOML
+fi
+
 # Home Assistant ingress autologin: an appservice that may log in as any
 # local user. The token never leaves the container; turning the option off
 # forgets it, which leaves the registered appservice unusable.
@@ -109,6 +160,7 @@ AS_TOKEN=$AS_TOKEN
 SERVER_NAME='$SERVER_NAME'
 HOMESERVER_URL='$HOMESERVER_URL'
 INTERNAL_URL=${SCHEME}://127.0.0.1:8008
+AUTO_JOIN_ROOMS='$(printf '%s' "$AUTO_JOIN" | tr -d '",')'
 ENV
 )
 else
@@ -162,6 +214,21 @@ cat >> "$CONFIG" <<TOML
 client = "$HOMESERVER_URL"
 TOML
 
+# Other servers find this one through /.well-known/matrix/server, so
+# federation works through the reverse proxy on 443 without opening 8448
+if [ "$(option allow_federation)" = "true" ]; then
+    case "$HOMESERVER_URL" in
+        https://*)
+            FEDERATION_HOST=$(printf '%s' "$HOMESERVER_URL" | sed -E 's#^https://##; s#/.*##')
+            case "$FEDERATION_HOST" in *:*) ;; *) FEDERATION_HOST="$FEDERATION_HOST:443" ;; esac
+            echo "server = \"$FEDERATION_HOST\"" >> "$CONFIG"
+            ;;
+        *)
+            echo "[WARN] Federation needs an https:// homeserver_url; other servers won't be able to reach this one." >&2
+            ;;
+    esac
+fi
+
 # Element Web, pinned to this homeserver
 cat > "$WEBROOT/element/config.json" <<JSON
 {
@@ -180,6 +247,35 @@ cat > "$WEBROOT/element/config.json" <<JSON
     }
 }
 JSON
+
+# Public landing page (served on 8010; the reverse proxy sends "/" here)
+html_escape() {
+    printf '%s' "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'
+}
+# sed replacement text: escape the characters sed treats specially
+sed_escape() {
+    printf '%s' "$1" | sed 's/[\\&|]/\\&/g'
+}
+CONTACT=$(option_text landing_contact)
+if [ -n "$CONTACT" ]; then
+    CONTACT_HTML="Contact $(html_escape "$CONTACT")."
+else
+    CONTACT_HTML="Contact the person who invited your child."
+fi
+if [ "$(option allow_federation)" != "true" ]; then
+    FEDERATION_HTML="<strong>No strangers.</strong> The server isn't connected to other Matrix servers, so accounts here can only talk to other people with accounts on this server."
+elif [ -n "$FEDERATION_ALLOWED" ]; then
+    FEDERATION_HTML="<strong>Limited connections.</strong> Besides people on this server, accounts can only reach people on a few approved Matrix servers."
+else
+    FEDERATION_HTML="<strong>Connected to the wider Matrix network.</strong> Accounts here can talk to people on other Matrix servers, the way email works between providers."
+fi
+mkdir -p /tmp/www-public
+sed -e "s|{{SERVER}}|$(sed_escape "$(html_escape "$HOMESERVER_URL")")|g" \
+    -e "s|{{CONTACT}}|$(sed_escape "$CONTACT_HTML")|g" \
+    -e "s|{{FEDERATION}}|$(sed_escape "$FEDERATION_HTML")|g" \
+    /var/www-public/index.template.html > /tmp/www-public/index.html
+: > /tmp/httpd-public.conf
+httpd -f -p 0.0.0.0:8010 -h /tmp/www-public -c /tmp/httpd-public.conf &
 
 # Only accept connections from the Home Assistant ingress proxy
 cat > /tmp/httpd.conf <<CONF

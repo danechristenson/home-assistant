@@ -1,0 +1,45 @@
+name: Update add-ons
+
+# Daily: bump the Matrix and Matrix Call Relay add-ons to the latest upstream
+# releases, build and smoke-test them, and commit to main only if they pass.
+# Home Assistant then offers the update (or installs it, with Auto update on).
+
+on:
+  schedule:
+    - cron: "17 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-addons
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check for new upstream releases
+        id: check
+        run: |
+          changed=$(python3 .github/scripts/update_addons.py)
+          echo "changed=$(echo $changed)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and smoke-test changed add-ons
+        if: steps.check.outputs.changed != ''
+        run: |
+          for addon in ${{ steps.check.outputs.changed }}; do
+            sh .github/scripts/smoke_test.sh "$addon"
+          done
+
+      - name: Commit
+        if: steps.check.outputs.changed != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add matrix matrix_call_relay
+          git commit -m "chore: update ${{ steps.check.outputs.changed }} to latest upstream releases"
+          git push

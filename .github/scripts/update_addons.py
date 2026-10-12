@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+"""Bump the Matrix and Matrix Call Relay add-ons to the latest upstream releases.
+
+Checks Continuwuity, Element Web, qrcode-generator and coturn. For each add-on
+whose dependencies changed, updates build.yaml, the add-on version and the
+changelog, then prints the changed add-on folders (one per line) for the
+workflow to build and test.
+
+qrcode-generator and coturn only update within their current major version:
+qrcode-generator 2.x moved its files and coturn majors can change config, so
+those need a deliberate manual upgrade.
+
+Versions must always increase for Home Assistant (AwesomeVersion): a new
+Continuwuity release becomes the Matrix version (26.10.0); any other change
+bumps a fourth number (26.9.1.5). Never use "-N" suffixes: those are
+pre-releases and sort as older.
+"""
+
+import json
+import re
+import sys
+import urllib.request
+from datetime import date
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def get_json(url, headers=None):
+    request = urllib.request.Request(url, headers={"User-Agent": "addon-updater", **(headers or {})})
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.load(response)
+
+
+def version_key(version):
+    return tuple(int(part) for part in re.findall(r"\d+", version))
+
+
+def latest_continuwuity():
+    releases = get_json("https://forgejo.ellis.link/api/v1/repos/continuwuation/continuwuity/releases?limit=20")
+    tags = [r["tag_name"] for r in releases if not r["draft"] and not r["prerelease"]]
+    tags = [t for t in tags if re.fullmatch(r"v\d+\.\d+\.\d+", t)]
+    return max(tags, key=version_key)
+
+
+def ghcr_tag_exists(repository, tag):
+    token = get_json(f"https://ghcr.io/token?scope=repository:{repository}:pull")["token"]
+    request = urllib.request.Request(
+        f"https://ghcr.io/v2/{repository}/manifests/{tag}",
+        method="HEAD",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json",
+        },
+    )
+    try:
+        urllib.request.urlopen(request, timeout=30)
+        return True
+    except urllib.error.HTTPError:
+        return False
+
+
+def latest_element():
+    return get_json("https://api.github.com/repos/element-hq/element-web/releases/latest")["tag_name"]
+
+
+def same_major(versions, current):
+    major = version_key(current)[0]
+    return max((v for v in versions if version_key(v)[0] == major), key=version_key, default=current)
+
+
+def latest_qrcode(current):
+    versions = get_json("https://registry.npmjs.org/qrcode-generator")["versions"]
+    return same_major([v for v in versions if re.fullmatch(r"\d+\.\d+\.\d+", v)], current)
+
+
+def latest_coturn(current):
+    tags = get_json("https://hub.docker.com/v2/repositories/coturn/coturn/tags?page_size=100&ordering=last_updated")
+    versions = [m.group(1) for t in tags["results"] if (m := re.fullmatch(r"(\d+\.\d+\.\d+)-alpine", t["name"]))]
+    return same_major(versions, current)
+
+
+def read_value(text, pattern):
+    match = re.search(pattern, text, re.M)
+    if not match:
+        sys.exit(f"Could not find {pattern!r}")
+    return match.group(1)
+
+
+def add_changelog_entry(folder, version, lines):
+    path = ROOT / folder / "CHANGELOG.md"
+    text = path.read_text()
+    entry = f"## {version}\n\n" + "".join(f"- {line}\n" for line in lines) + "\n"
+    path.write_text(text.replace("# Changelog\n\n", f"# Changelog\n\n{entry}", 1))
+
+
+def set_addon_version(folder, version):
+    path = ROOT / folder / "config.yaml"
+    path.write_text(re.sub(r'^version: ".*"$', f'version: "{version}"', path.read_text(), count=1, flags=re.M))
+
+
+def update_matrix():
+    build = ROOT / "matrix" / "build.yaml"
+    text = build.read_text()
+    current = {
+        "continuwuity": read_value(text, r"continuwuity:(v[\d.]+)$"),
+        "element": read_value(text, r"ELEMENT_VERSION: (\S+)$"),
+        "qrcode": read_value(text, r"QRCODE_VERSION: (\S+)$"),
+    }
+    latest = {
+        "continuwuity": latest_continuwuity(),
+        "element": latest_element(),
+        "qrcode": latest_qrcode(current["qrcode"]),
+    }
+    if not ghcr_tag_exists("continuwuity/continuwuity", latest["continuwuity"]):
+        print(f"Continuwuity {latest['continuwuity']} image not published yet; keeping {current['continuwuity']}", file=sys.stderr)
+        latest["continuwuity"] = current["continuwuity"]
+
+    changes = {k: (current[k], latest[k]) for k in current if version_key(latest[k]) > version_key(current[k])}
+    if not changes:
+        return False
+
+    text = text.replace(f"continuwuity:{current['continuwuity']}", f"continuwuity:{latest['continuwuity']}")
+    text = text.replace(f"ELEMENT_VERSION: {current['element']}", f"ELEMENT_VERSION: {latest['element']}")
+    text = text.replace(f"QRCODE_VERSION: {current['qrcode']}", f"QRCODE_VERSION: {latest['qrcode']}")
+    build.write_text(text)
+
+    addon_version = read_value((ROOT / "matrix" / "config.yaml").read_text(), r'^version: "(.*)"$')
+    if "continuwuity" in changes:
+        new_version = latest["continuwuity"].lstrip("v")
+    else:
+        parts = addon_version.split(".")
+        parts = parts + ["0"] if len(parts) == 3 else parts
+        parts[3] = str(int(parts[3]) + 1)
+        new_version = ".".join(parts)
+    set_addon_version("matrix", new_version)
+
+    names = {"continuwuity": "Continuwuity", "element": "Element Web", "qrcode": "qrcode-generator"}
+    add_changelog_entry("matrix", new_version, [f"Update {names[k]} {old} → {new}." for k, (old, new) in changes.items()])
+    print(f"matrix: {addon_version} -> {new_version} ({', '.join(changes)})", file=sys.stderr)
+    return True
+
+
+def update_relay():
+    build = ROOT / "matrix_call_relay" / "build.yaml"
+    text = build.read_text()
+    current = read_value(text, r"coturn/coturn:([\d.]+)-alpine$")
+    latest = latest_coturn(current)
+    if version_key(latest) <= version_key(current):
+        return False
+    build.write_text(text.replace(f"coturn/coturn:{current}-alpine", f"coturn/coturn:{latest}-alpine"))
+    set_addon_version("matrix_call_relay", latest)
+    add_changelog_entry("matrix_call_relay", latest, [f"Update coturn {current} → {latest}."])
+    print(f"matrix_call_relay: {current} -> {latest}", file=sys.stderr)
+    return True
+
+
+def main():
+    changed = []
+    if update_matrix():
+        changed.append("matrix")
+    if update_relay():
+        changed.append("matrix_call_relay")
+    print("\n".join(changed))
+    print(f"Checked {date.today()}: {', '.join(changed) or 'everything up to date'}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()

@@ -91,6 +91,38 @@ Keep Home Assistant itself private (for example behind your router's
 WireGuard VPN). Friends don't need it: they use the Element app and invite
 links, and sidebar autologin is only for people with Home Assistant accounts.
 
+## Rooms, groups and channels
+
+- **One-to-one and group chats:** anyone can start them by inviting people
+  (FluffyChat: **New group**; Element: **+ → New room**).
+- **Channels everyone can find:** with `lockdown_room_directory` on (the
+  default), only admins can publish rooms to the room directory.
+- **A room everyone is in:** create it as the admin with an address such as
+  `#family:matrix.example.com` and visibility *public* (anyone with an
+  account here can join; with federation off, nobody else can), then add it
+  to `auto_join_rooms`. New accounts join it automatically, and Home
+  Assistant users' existing accounts join the next time they open Element in
+  the sidebar (once per room, so leaving sticks). To add other existing
+  accounts, send in the Admin Room:
+  `!admin users force-join-all-local-users #family:matrix.example.com --yes-i-want-to-do-this`
+- `allow_room_creation: false` limits creating rooms to admins, but that also
+  stops everyone else from starting one-to-one chats.
+
+## Public landing page
+
+The add-on serves a page on port 8010 explaining the chat for parents and
+invitees: who runs it, who can join, privacy and safety, and how to join. Set
+`landing_contact` to show who to contact. To show it at your server address,
+add this to the proxy host's **Advanced** settings in NGINX Proxy Manager:
+
+```nginx
+location = / {
+    proxy_pass http://<Home Assistant IP>:8010;
+}
+```
+
+Only the front page goes to 8010; Matrix keeps working as before.
+
 ## Voice and video calls
 
 Calls between people on the same home network work out of the box. When
@@ -119,6 +151,12 @@ registration_token: ""
 allow_federation: false
 ingress_autologin: true
 call_relay: false
+lockdown_room_directory: true
+allow_room_creation: true
+auto_join_rooms:
+  - "#family:example.com"
+federation_allowed_servers: []
+landing_contact: "Alex at alex@example.com"
 ssl: false
 certfile: fullchain.pem
 keyfile: privkey.pem
@@ -170,6 +208,31 @@ default.
 Use the Matrix Call Relay add-on for voice and video calls (see
 [Voice and video calls](#voice-and-video-calls)). Off by default.
 
+### Option: `lockdown_room_directory`
+
+Only admins can publish rooms to the room directory. On by default.
+
+### Option: `allow_room_creation`
+
+Turn off to let only admins create rooms. This also blocks one-to-one chats
+for everyone else. On by default.
+
+### Option: `auto_join_rooms`
+
+Room addresses every new account joins (see
+[Rooms, groups and channels](#rooms-groups-and-channels)).
+
+### Option: `federation_allowed_servers`
+
+When `allow_federation` is on, connect only to these servers (e.g.
+`matrix.org`). Empty allows any server. Turning federation on also publishes
+`/.well-known/matrix/server`, so other servers reach this one through your
+reverse proxy on 443.
+
+### Option: `landing_contact`
+
+Contact line on the public landing page.
+
 ### Option: `ssl`
 
 Serve the Matrix API over HTTPS using the certificate files below. A reverse
@@ -187,6 +250,7 @@ Only used when `ssl` is enabled.
 | Port | Description |
 | ---- | ----------- |
 | 8008/tcp | Matrix client API. Point Matrix apps (or your reverse proxy) here. |
+| 8010/tcp | Public landing page. Point the reverse proxy's `/` here; don't forward it on the router. |
 
 Element itself is served through Home Assistant ingress and needs no port.
 
