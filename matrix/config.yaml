@@ -1,5 +1,5 @@
 name: Matrix
-version: "26.9.1.5"
+version: "26.9.1.6"
 slug: matrix
 description: Private, encrypted group chat on Home Assistant, using the Element app
 url: https://github.com/danechristenson/home-assistant/tree/main/matrix
@@ -12,6 +12,8 @@ boot: auto
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:matrix
+# Every Home Assistant user gets Element in the sidebar, not only admins
+panel_admin: false
 panel_title: Element
 ports:
   8008/tcp: 8008

@@ -30,7 +30,8 @@ enter it there, or use it in any Matrix app's **Create account** screen.
 ## Signing in from the sidebar (autologin)
 
 When `ingress_autologin` is on, anyone who opens **Element** in the Home
-Assistant sidebar is signed in automatically. They get a Matrix account
+Assistant sidebar is signed in automatically. The sidebar entry is shown to
+every Home Assistant user, not only admins. They get a Matrix account
 named after their Home Assistant username, e.g. Home Assistant user `alex`
 becomes `@alex:example.com`, with their Home Assistant display name. If that
 Matrix account already exists, they are signed in to it.

@@ -1,5 +1,10 @@
 # Changelog
 
+## 26.9.1.6
+
+- Show Element in the sidebar for all Home Assistant users, not only admins,
+  so everyone can use sidebar sign-in.
+
 ## 26.9.1.5
 
 - Group voice and video calls with screen sharing through the new Matrix
