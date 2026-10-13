@@ -140,6 +140,17 @@ server.
 Element X also uses this for one-to-one calls. FluffyChat and classic
 Element use the older one-to-one call system described below.
 
+To join a call, each person's app posts an "I'm in this call" entry in the
+room. Element lets every member do that in the rooms it creates, but rooms
+made by FluffyChat or Element X only let moderators, so only the room admin
+could join. With `group_calls` and `ingress_autologin` on, the add-on checks
+every minute and lowers that one permission to the level every member has,
+acting as a room member who may change permissions. The room timeline shows
+it as that person changing the room's permissions, and the log says
+`Everyone can now join calls in room ...`. Nothing else changes. To do it by
+hand instead: Room settings → Roles & Permissions → **Join Element calls** →
+Default.
+
 While Continuwuity issue 1440 is open, group calls need the federation API
 switched on, because the call service checks callers through it. With
 `group_calls` on and `allow_federation` off, the add-on turns federation on

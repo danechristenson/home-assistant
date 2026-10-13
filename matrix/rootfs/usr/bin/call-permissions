@@ -1,0 +1,133 @@
+#!/bin/sh
+# Lets every member join group calls in rooms on this server.
+#
+# A device joins a call by posting an org.matrix.msc3401.call.member state
+# event in the room. Element Web lets everyone post it in rooms it creates;
+# FluffyChat and Element X leave it at the level for other state events
+# (moderators), so in their rooms only the room admin can join a call.
+# Every minute this lowers that one permission to the level every member
+# has, acting as a room member allowed to change permissions (through the
+# sidebar autologin appservice, which may act as any local user). Nothing
+# else in the room's permissions changes.
+#
+# Rooms are found from the accounts that have opened the sidebar, then from
+# everyone who shares a room with them, and so on.
+
+. /tmp/autologin.env 2>/dev/null || exit 0
+[ "$AUTOLOGIN" = "true" ] || exit 0
+
+INTERVAL=${CALL_PERMISSIONS_SECONDS:-60}
+EVENT=org.matrix.msc3401.call.member
+EVENT_RE='org\.matrix\.msc3401\.call\.member'
+SERVER_RE=$(printf '%s' "$SERVER_NAME" | sed 's/[].[\\*^$]/\\&/g')
+ADDRESS=${INTERNAL_URL#http://}
+FAILED=/tmp/call-permissions.failed
+set -f
+
+encode() {
+    printf '%s' "$1" | sed 's/%/%25/g; s/!/%21/g; s/:/%3A/g; s/@/%40/g; s/#/%23/g; s/+/%2B/g; s|/|%2F|g; s/=/%3D/g'
+}
+
+# GET a client API path as a local user
+get() {
+    wget -q -O - --header "Authorization: Bearer $AS_TOKEN" \
+        "$INTERNAL_URL$1?user_id=$(encode "$2")" 2>/dev/null
+}
+
+# PUT a JSON body to a client API path as a local user; busybox wget can't
+# send PUT, so speak HTTP to the local listener directly. The server drops
+# the reply if the request side closes first, so hold it open briefly
+put() {
+    length=$(printf '%s' "$3" | wc -c | tr -d ' ')
+    status=$({
+        printf 'PUT %s?user_id=%s HTTP/1.1\r\nHost: %s\r\nAuthorization: Bearer %s\r\nContent-Type: application/json\r\nContent-Length: %s\r\nConnection: close\r\n\r\n%s' \
+            "$1" "$(encode "$2")" "$ADDRESS" "$AS_TOKEN" "$length" "$3"
+        sleep 2
+    } | nc -w 10 "${ADDRESS%:*}" "${ADDRESS##*:}" 2>/dev/null | head -n 1)
+    case "$status" in
+        "HTTP/1."?" 200"*) return 0 ;;
+    esac
+    return 1
+}
+
+# Print a numeric field of a JSON object (empty if missing)
+number() {
+    printf '%s' "$1" | sed -nE "s/.*\"$2\" *: *(-?[0-9]+).*/\1/p" | head -n 1
+}
+
+# Lower the call permission in one room if members can't join calls there
+check_room() {
+    room=$1
+    reader=$2
+    members=$3
+    path="/_matrix/client/v3/rooms/$(encode "$room")/state/m.room.power_levels"
+    levels=$(get "$path" "$reader" | tr -d '\n')
+    [ -n "$levels" ] || return 0
+
+    needed=$(number "$levels" "$EVENT_RE")
+    [ -n "$needed" ] || needed=$(number "$levels" state_default)
+    needed=${needed:-50}
+    members_level=$(number "$levels" users_default)
+    members_level=${members_level:-0}
+    [ "$needed" -gt "$members_level" ] || return 0
+
+    if printf '%s' "$levels" | grep -qE "\"$EVENT_RE\" *:"; then
+        new=$(printf '%s' "$levels" | sed -E "s/(\"$EVENT_RE\" *: *)-?[0-9]+/\1$members_level/")
+    elif printf '%s' "$levels" | grep -qE '"events" *: *\{ *\}'; then
+        new=$(printf '%s' "$levels" | sed -E "s/(\"events\" *: *\{) *\}/\1\"$EVENT\":$members_level}/")
+    elif printf '%s' "$levels" | grep -qE '"events" *: *\{'; then
+        new=$(printf '%s' "$levels" | sed -E "s/(\"events\" *: *\{)/\1\"$EVENT\":$members_level,/")
+    else
+        new=$(printf '%s' "$levels" | sed -E "s/^ *\{/{\"events\":{\"$EVENT\":$members_level},/")
+    fi
+
+    # Try the room's highest-ranked local members first, then everyone else
+    # (room creators in newer rooms aren't listed with a level)
+    ranked=$(printf '%s' "$levels" | sed -nE 's/.*"users" *: *\{([^}]*)\}.*/\1/p' | tr ',' '\n' \
+        | sed -nE "s/^ *\"(@[^\"]+:$SERVER_RE)\" *: *(-?[0-9]+).*/\2 \1/p" | sort -rn | cut -d ' ' -f 2)
+    for actor in $ranked $members; do
+        if put "$path" "$actor" "$new"; then
+            echo "[INFO] Everyone can now join calls in room $room (permission changed as $actor)"
+            if [ -f "$FAILED" ]; then
+                grep -vxF "$room" "$FAILED" > "$FAILED.new"
+                mv "$FAILED.new" "$FAILED"
+            fi
+            return 0
+        fi
+    done
+    if ! grep -qxF "$room" "$FAILED" 2>/dev/null; then
+        echo "$room" >> "$FAILED"
+        echo "[WARN] Only moderators can join calls in room $room, and no one there may change that. A room admin can: Room settings > Roles & Permissions > Join Element calls > Default." >&2
+    fi
+}
+
+scan() {
+    queue=$(ls /data/autologin_joined 2>/dev/null | sed "s/.*/@&:$SERVER_NAME/")
+    seen_users=
+    seen_rooms=
+    while [ -n "$queue" ]; do
+        # shellcheck disable=SC2086
+        set -- $queue
+        user=$1
+        shift
+        queue="$*"
+        case " $seen_users " in *" $user "*) continue ;; esac
+        seen_users="$seen_users $user"
+        for room in $(get /_matrix/client/v3/joined_rooms "$user" | grep -oE '"![^"]+"' | tr -d '"'); do
+            case " $seen_rooms " in *" $room "*) continue ;; esac
+            seen_rooms="$seen_rooms $room"
+            members=$(get "/_matrix/client/v3/rooms/$(encode "$room")/joined_members" "$user" \
+                | grep -oE "\"@[a-z0-9._=/+-]+:$SERVER_RE\" *: *\{" | sed -E 's/^"([^"]+)".*/\1/')
+            queue="$queue $members"
+            check_room "$room" "$user" "$members"
+        done
+    done
+}
+
+until wget -q -O /dev/null "$INTERNAL_URL/_matrix/client/versions" 2>/dev/null; do
+    sleep 5
+done
+while true; do
+    scan
+    sleep "$INTERVAL"
+done

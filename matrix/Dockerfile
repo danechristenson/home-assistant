@@ -22,5 +22,5 @@ COPY --from=web /www /var/www
 COPY rootfs /
 
 COPY run.sh /run.sh
-RUN chmod +x /run.sh /var/www/cgi-bin/session /var/www/cgi-bin/index.cgi
+RUN chmod +x /run.sh /var/www/cgi-bin/session /var/www/cgi-bin/index.cgi /usr/bin/call-permissions
 ENTRYPOINT ["/run.sh"]

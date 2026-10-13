@@ -350,6 +350,16 @@ while IFS= read -r line; do
     esac
 done < /tmp/server.out &
 
+# With group calls on, let every member join calls in every room (rooms made
+# by FluffyChat and Element X only let moderators); needs the autologin token
+if [ -n "$LIVEKIT_SERVICE_URL" ]; then
+    if [ "$AUTOLOGIN" = "true" ]; then
+        call-permissions &
+    else
+        echo "[WARN] Turn on 'Sign in from the sidebar automatically' (ingress_autologin) so the add-on can let everyone join calls in rooms made by FluffyChat or Element X." >&2
+    fi
+fi
+
 echo "[INFO] Starting Continuwuity for $SERVER_NAME"
 conduwuit --config "$CONFIG" > /tmp/server.out 2>&1 &
 SERVER_PID=$!

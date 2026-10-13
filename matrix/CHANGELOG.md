@@ -1,5 +1,11 @@
 # Changelog
 
+## 26.9.1.10
+
+- Everyone can join calls in rooms made by FluffyChat or Element X. Those
+  rooms only let moderators join calls; with group calls and sidebar sign-in
+  on, the add-on now lowers that one permission for every member.
+
 ## 26.9.1.9
 
 - Profiles (display names and avatars) now require signing in, so they can't

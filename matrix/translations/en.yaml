@@ -50,7 +50,8 @@ configuration:
       Use the separate Matrix Group Calls add-on for group voice and video
       calls with screen sharing (Element and Element X). Install and start
       that add-on first. Turns federation on for calls only, with every
-      other server blocked.
+      other server blocked. With sidebar sign-in on, also lets every member
+      join calls in rooms made by FluffyChat or Element X.
   lockdown_room_directory:
     name: Only admins publish rooms
     description: >-
