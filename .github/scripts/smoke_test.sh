@@ -73,6 +73,7 @@ EOF
         wait_for http://localhost:17883/healthz || fail "lk-jwt-service did not respond"
         grep -q '^livekit_service_url=https://livekit.example.com$' "$DATA/share/matrix-group-calls/calls.conf" \
             || fail "call service not shared with the Matrix add-on"
+        docker exec "$NAME" grep -q 'max_participants: 8' /tmp/livekit.yaml || fail "call limit missing"
         ;;
     *)
         fail "no smoke test for $ADDON"

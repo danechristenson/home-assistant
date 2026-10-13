@@ -16,7 +16,15 @@ option_text() {
 # Only advertise the call service to Matrix while it is actually running
 rm -f "$SHARED"
 
+# Print a whole-number option, or the default when it isn't set
+option_number() {
+    value=$(sed -nE "s/.*\"$1\": *([0-9]+).*/\1/p" "$OPTIONS" | head -n 1)
+    echo "${value:-$2}"
+}
+
 DOMAIN=$(option_text domain)
+MAX_PEOPLE=$(option_number max_people_per_call 8)
+MAX_MBPS=$(option_number max_total_mbps 100)
 SERVER_NAME=$(option_text matrix_server_name)
 for value in "domain=$DOMAIN" "matrix_server_name=$SERVER_NAME"; do
     if ! printf '%s' "${value#*=}" | grep -qE "$HOSTNAME_PATTERN"; then
@@ -80,6 +88,12 @@ keys:
 room:
   # Only lk-jwt-service may create call rooms, and only for local users
   auto_create: false
+  # 0 means no limit
+  max_participants: $MAX_PEOPLE
+limit:
+  # All calls together, sent plus received; above it nobody new can join.
+  # 0 means no limit
+  bytes_per_sec: $((MAX_MBPS * 125000))
 logging:
   level: info
 YAML
@@ -114,6 +128,8 @@ if [ -n "$LAN_IPS" ]; then
 else
     echo "[WARN] No home-network address (192.168.x.x or 10.x.x.x) found; devices at home will connect through your public IP." >&2
 fi
+
+echo "[INFO] Call limits: ${MAX_PEOPLE} people per call, ${MAX_MBPS} Mbit/s for all calls together (0 = no limit)"
 
 PUBLIC_IP=$(lookup_public_ip)
 write_config

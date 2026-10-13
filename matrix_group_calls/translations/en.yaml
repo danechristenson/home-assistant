@@ -10,6 +10,19 @@ configuration:
     description: >-
       The Matrix add-on's server name, e.g. matrix.example.com. Only accounts
       on this server can start calls.
+  max_people_per_call:
+    name: Most people in one call
+    description: >-
+      Anyone joining a call that already has this many people is turned
+      away. 0 means no limit.
+  max_total_mbps:
+    name: Most total call traffic (Mbit/s)
+    description: >-
+      Once all calls together send and receive more than this, new people
+      can't join any call; people already in calls stay. Counts calls at
+      home too. A four-person video call uses roughly 20. Keep it below
+      your internet upload speed if people call from outside. 0 means no
+      limit.
 network:
   7880/tcp: >-
     LiveKit signalling. Point the reverse proxy here; don't forward it on the

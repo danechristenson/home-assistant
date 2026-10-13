@@ -1,5 +1,5 @@
 name: Matrix Group Calls
-version: "1.13.9.2"
+version: "1.13.9.3"
 slug: matrix_group_calls
 description: Group voice and video calls with screen sharing for the Matrix add-on
 url: https://github.com/danechristenson/home-assistant/tree/main/matrix_group_calls
@@ -27,6 +27,10 @@ ports_description:
 options:
   domain: ""
   matrix_server_name: ""
+  max_people_per_call: 8
+  max_total_mbps: 100
 schema:
   domain: str
   matrix_server_name: str
+  max_people_per_call: int(0,)?
+  max_total_mbps: int(0,)?

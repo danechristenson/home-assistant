@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.13.9.3
+
+- Call limits: at most 8 people per call, and no new people once all calls
+  together pass 100 Mbit/s. Both are adjustable on the Configuration tab
+  (0 turns a limit off).
+
 ## 1.13.9.2
 
 - Fix blocky video and broken-up sound for callers at home: LiveKit now runs

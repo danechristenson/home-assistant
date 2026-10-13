@@ -55,6 +55,24 @@ checks again every 5 minutes, restarting LiveKit if your home IP changes.
 
 Your Matrix add-on's server name. Only accounts on it can start calls.
 
+### Option: `max_people_per_call`
+
+Anyone joining a call that already has this many people is turned away.
+Default 8; 0 means no limit.
+
+### Option: `max_total_mbps`
+
+Once all calls together send and receive more than this many Mbit/s, nobody
+new can join any call; people already in calls stay. Default 100; 0 means no
+limit.
+
+LiveKit only forwards audio and video without re-encoding, so the processor
+is rarely the bottleneck: bandwidth is. As a rough guide, a four-person
+video call uses about 20 Mbit/s, mostly the server sending each person
+everyone else's video. Calls at home count too, but only callers outside
+your home use your internet connection, so keep the limit below your upload
+speed if people call from outside.
+
 ## How it fits together
 
 The add-on uses the host network: LiveKit offers your home-network address
