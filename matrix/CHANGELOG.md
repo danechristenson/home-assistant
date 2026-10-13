@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.9.1.11
+
+- Update Element Web v1.12.30 → v1.12.31.
+
 ## 26.9.1.10
 
 - Everyone can join calls in rooms made by FluffyChat or Element X. Those

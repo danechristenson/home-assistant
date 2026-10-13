@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.13.9.4
+
+- Update lk-jwt-service 0.8.0 → 0.9.0.
+
 ## 1.13.9.3
 
 - Call limits: at most 8 people per call, and no new people once all calls
