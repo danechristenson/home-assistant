@@ -40,10 +40,17 @@ Things to know:
 
 - Element only runs on secure pages, so open Home Assistant with
   `https://` to use it in the sidebar.
-- Accounts created this way have no password. To also use them in the
-  Element phone app, have the admin send
-  `!admin users reset-password <username>` in the admin room, which replies
-  with a new password.
+- Accounts created this way have no password. To also sign in to phone or
+  desktop apps (Element X, FluffyChat), each person opens **Password for
+  phone apps** from Element's home screen in the sidebar and sets one. It
+  only changes the password of their own account, and doesn't sign them out
+  anywhere. Behind the scenes the add-on briefly reloads the server's
+  settings with one admin command and hides that command's output from the
+  log. An admin can also send
+  `!admin users reset-password --convert-to-local-account <username>` in the
+  admin room, which replies with a new password (without
+  `--convert-to-local-account` it refuses accounts created from the
+  sidebar).
 - Signing out of Element in the sidebar also signs you out of Home Assistant
   in that browser, because both share the same browser storage.
 - Autologin is unavailable while `ssl` is on. Use a reverse proxy for HTTPS

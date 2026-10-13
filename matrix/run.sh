@@ -340,7 +340,23 @@ printf '%s' "$SERVER_NAME" > /data/server_name
 rm -f /tmp/setup_token /tmp/server.out
 mkfifo /tmp/server.out
 ESC=$(printf '\033')
+HIDING=false
 while IFS= read -r line; do
+    # While the sidebar password page sets a password, drop the server's
+    # console output (the admin command's reply repeats the password, wrapped
+    # over several lines); its timestamped log lines still pass
+    if [ -d /tmp/password.lock ] || [ "$HIDING" = "true" ]; then
+        case "$(printf '%s' "$line" | sed -E "s/${ESC}\\[[0-9;]*m//g")" in
+            20[0-9][0-9]-*)
+                HIDING=false
+                ;;
+            *)
+                [ "$HIDING" = "true" ] || echo "[INFO] A password was set from the sidebar (hidden from the log)"
+                HIDING=true
+                continue
+                ;;
+        esac
+    fi
     printf '%s\n' "$line"
     case "$line" in
         *"using the registration token "*)
@@ -360,9 +376,14 @@ if [ -n "$LIVEKIT_SERVICE_URL" ]; then
     fi
 fi
 
+# Admin commands the sidebar password page runs on SIGUSR2 (see
+# cgi-bin/password); empty except while it sets a password
+(umask 077 && printf '[global]\nadmin_signal_execute = []\n' > /tmp/admin-signal.toml)
+
 echo "[INFO] Starting Continuwuity for $SERVER_NAME"
-conduwuit --config "$CONFIG" > /tmp/server.out 2>&1 &
+conduwuit --config "$CONFIG" --config /tmp/admin-signal.toml > /tmp/server.out 2>&1 &
 SERVER_PID=$!
+echo "$SERVER_PID" > /tmp/conduwuit.pid
 trap 'kill -TERM "$SERVER_PID" 2>/dev/null' TERM INT
 
 set +e

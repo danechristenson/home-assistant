@@ -1,5 +1,11 @@
 # Changelog
 
+## 26.9.1.13
+
+- New **Password for phone apps** page (linked from Element's home screen in
+  the sidebar): everyone can set a password for their own account, including
+  accounts created by sidebar sign-in, to sign in to Element X or FluffyChat.
+
 ## 26.9.1.12
 
 - Update Element Web v1.12.31 → v1.12.32.
