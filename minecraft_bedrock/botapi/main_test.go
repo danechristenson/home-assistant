@@ -23,7 +23,7 @@ func setup(t *testing.T) (http.Handler, func() []string) {
 		t.Fatal(err)
 	}
 	sendCommand = script
-	return handler(testKey), func() []string {
+	return botHandler(testKey), func() []string {
 		raw, _ := os.ReadFile(commands)
 		return strings.Split(strings.TrimSpace(string(raw)), "\n")
 	}
@@ -156,5 +156,106 @@ func TestGamertags(t *testing.T) {
 	}
 	if code, _ := bot(h, "POST", "/api/bot/players", `{"name":"Steve","role":"admin"}`); code != 400 {
 		t.Errorf("bad role accepted")
+	}
+	if code, result := bot(h, "POST", "/api/bot/players", `{"name":"Steve","role":"visitor"}`); code != 200 || result["player"].(map[string]any)["role"] != "visitor" {
+		t.Errorf("visitor role: %d %v", code, result)
+	}
+}
+
+// Players added before (or in the panel) can't be changed from chat: a
+// Minecraft helper mustn't be able to demote or remove the owner's account
+func TestChatCannotTouchOtherPlayers(t *testing.T) {
+	h, _ := setup(t)
+	os.WriteFile(filepath.Join(dataDir, "allowlist.json"), []byte(`[{"name":"Owner","xuid":"111"}]`), 0o644)
+	os.WriteFile(filepath.Join(dataDir, "permissions.json"), []byte(`[{"xuid":"111","permission":"operator"}]`), 0o644)
+	for _, body := range []string{`{"name":"owner"}`, `{"name":"Owner","role":"member"}`} {
+		if code, _ := bot(h, "POST", "/api/bot/players", body); code != 409 {
+			t.Errorf("chat changed an existing player with %s: %d", body, code)
+		}
+	}
+	if code, _ := bot(h, "POST", "/api/bot/players/remove", `{"name":"Owner"}`); code != 409 {
+		t.Errorf("chat removed an existing player: %d", code)
+	}
+	if got := file(t, "permissions.json"); !reflect.DeepEqual(got, asJSON(`[{"xuid":"111","permission":"operator"}]`)) {
+		t.Errorf("permissions changed: %v", got)
+	}
+	// Players the panel adds are off limits to chat too
+	panel := panelHandler()
+	call(panel, "POST", "/api/players", `{"name":"Guest","role":"visitor"}`, "172.30.32.2", "")
+	if code, _ := bot(h, "POST", "/api/bot/players/remove", `{"name":"Guest"}`); code != 409 {
+		t.Errorf("chat removed a panel player: %d", code)
+	}
+	_, list := bot(h, "GET", "/api/bot/players", "")
+	if len(list["players"].([]any)) != 0 {
+		t.Errorf("bot list shows non-chat players: %v", list)
+	}
+}
+
+func TestPanel(t *testing.T) {
+	setup(t)
+	panel := panelHandler()
+	for _, from := range []string{"192.168.1.50", "172.30.33.5", "10.1.0.2"} {
+		if code, _ := call(panel, "GET", "/api/state", "", from, ""); code != 403 {
+			t.Errorf("panel answered %s: %d", from, code)
+		}
+	}
+	if code, _ := call(panel, "GET", "/", "", "172.30.32.2", ""); code != 200 {
+		t.Errorf("panel page: %d", code)
+	}
+
+	os.WriteFile(filepath.Join(dataDir, "options.json"), []byte(`{"server_name":"Test","default_player_permission_level":"visitor","helper_bot_key":"secret-secret-secret"}`), 0o644)
+	os.WriteFile(filepath.Join(dataDir, "allowlist.json"), []byte(`[{"name":"Owner","xuid":"111"},{"name":"Old Friend","xuid":"222"}]`), 0o644)
+	os.WriteFile(filepath.Join(dataDir, "permissions.json"), []byte(`[{"xuid":"111","permission":"operator"}]`), 0o644)
+
+	// Change an existing player's role: applies at once (their xuid is known)
+	if code, _ := call(panel, "POST", "/api/players", `{"name":"old friend","role":"member"}`, "172.30.32.2", ""); code != 200 {
+		t.Fatalf("set role: %d", code)
+	}
+	if got := file(t, "permissions.json"); !reflect.DeepEqual(got, asJSON(`[{"xuid":"111","permission":"operator"},{"xuid":"222","permission":"member"}]`)) {
+		t.Errorf("permissions: %v", got)
+	}
+	call(panel, "POST", "/api/players", `{"name":"New Kid","role":"operator"}`, "172.30.32.2", "")
+
+	_, state := call(panel, "GET", "/api/state", "", "172.30.32.2", "")
+	if state["settings"].(map[string]any)["helper_bot_key"] != "(set)" {
+		t.Errorf("panel shows the bot key: %v", state["settings"])
+	}
+	rows := map[string]map[string]any{}
+	for _, row := range state["players"].([]any) {
+		r := row.(map[string]any)
+		rows[r["name"].(string)] = r
+	}
+	if r := rows["Owner"]; r["role"] != "operator" || r["source"] != "" || r["joined"] != true {
+		t.Errorf("Owner: %v", r)
+	}
+	if r := rows["Old Friend"]; r["role"] != "member" || r["source"] != "panel" {
+		t.Errorf("Old Friend: %v", r)
+	}
+	if r := rows["New Kid"]; r["role"] != "operator" || r["pending"] != true || r["joined"] != false {
+		t.Errorf("New Kid: %v", r)
+	}
+
+	// Remove someone who was added before
+	if code, _ := call(panel, "POST", "/api/players/remove", `{"name":"Owner"}`, "172.30.32.2", ""); code != 200 {
+		t.Errorf("remove: %d", code)
+	}
+	if got := file(t, "permissions.json"); !reflect.DeepEqual(got, asJSON(`[{"xuid":"222","permission":"member"}]`)) {
+		t.Errorf("permissions after remove: %v", got)
+	}
+
+	// The log tells the panel who's online and last seen
+	readLine("[INFO] Server started.")
+	readLine("[INFO] Player connected: New Kid, xuid: 333")
+	_, state = call(panel, "GET", "/api/state", "", "172.30.32.2", "")
+	if online := state["server"].(map[string]any)["online"].([]any); len(online) != 1 || online[0] != "New Kid" {
+		t.Errorf("online: %v", online)
+	}
+	if got := file(t, "permissions.json"); !reflect.DeepEqual(got, asJSON(`[{"xuid":"222","permission":"member"},{"xuid":"333","permission":"operator"}]`)) {
+		t.Errorf("first-join role: %v", got)
+	}
+	readLine("[INFO] Player disconnected: New Kid, xuid: 333, pfid: x")
+	_, state = call(panel, "GET", "/api/state", "", "172.30.32.2", "")
+	if online := state["server"].(map[string]any)["online"].([]any); len(online) != 0 {
+		t.Errorf("still online: %v", online)
 	}
 }

@@ -113,14 +113,21 @@ and restart both.
 
 In any room with the bot, use the player's Xbox gamertag:
 
-- `add Gamertag` lets them join the server, straight away.
-- `op Gamertag` makes them an operator.
-- `member Gamertag` makes an operator a normal player again.
+- `add Gamertag` lets them join the server, straight away, as a member;
+  `add Gamertag as operator` (or `as visitor`) picks the role.
+- `make Gamertag a member` / `an operator` / `a visitor` changes their role
+  ("user" and "player" mean member, "op" means operator).
 - `remove Gamertag` takes them off the server (and kicks them if they're
   on).
 - `list` shows who's been added from chat, and who hasn't joined yet.
 
-For example "@Helper add Steve". (`!minecraft add Steve` works too.)
+For example "@Helper add Steve as operator". (`!minecraft add Steve` works
+too.) Members can play and build, visitors can only look around, operators
+can use commands.
+
+The bot only changes players added from chat. Players added in the
+Minecraft panel in Home Assistant, or before (such as your own account),
+can only be changed there, so a helper can't demote or remove them.
 
 A gamertag is all you need: the Minecraft add-on learns the player's Xbox ID
 from the server log the first time they join. Bedrock stores operators by

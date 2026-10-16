@@ -7,7 +7,7 @@ ARG GO_VERSION
 # Lets the Matrix Helper Bot add players (static binary, standard library only)
 FROM golang:${GO_VERSION}-alpine AS botapi
 WORKDIR /src
-COPY botapi/go.mod botapi/*.go ./
+COPY botapi/go.mod botapi/*.go botapi/panel.html ./
 RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /minecraft-bot-api .
 
 # itzg/minecraft-bedrock-server: downloads and runs Mojang's Bedrock server

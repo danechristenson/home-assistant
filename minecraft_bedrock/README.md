@@ -9,8 +9,10 @@ Runs [itzg/minecraft-bedrock-server][itzg], the widely used Bedrock server
 image, with its settings on the Home Assistant Configuration tab.
 
 - Only allowed players can join (an allowlist), on by default
-- Works with the [Matrix Helper Bot][bot]: let players join, make them
-  operators and remove them from an encrypted chat room, by gamertag
+- A **Minecraft** sidebar panel: who's online, every allowed player and their
+  role, and the settings; add, re-role and remove players there
+- Works with the [Matrix Helper Bot][bot]: "@Helper add Steve as operator"
+  in an encrypted chat room
 - Follows Mojang's Bedrock releases through this repository's daily updates,
   so players' apps and the server stay on the same version
 

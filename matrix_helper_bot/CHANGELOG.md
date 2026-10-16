@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+
+- Minecraft roles in plain words: "add Steve as operator", "make Steve a
+  user", "make Steve a visitor" (visitors can only look around).
+- The bot can only change Minecraft players added from chat; players added
+  in the Minecraft panel or before are refused, so a helper can't demote or
+  remove them.
+
 ## 1.2.0
 
 - Ask for a password reset in a shared room (such as a family chat) and the

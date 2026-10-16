@@ -18,23 +18,47 @@ on, the server restarts onto the new version, so it matches players' apps.
    or **Servers → Add server** with your Home Assistant address and port
    19132.
 
+## The Minecraft panel
+
+The add-on adds **Minecraft** to the Home Assistant sidebar (for
+administrators). It shows:
+
+- whether the server is running, its Bedrock version and world, and who's
+  online;
+- every player on the allowlist, with their role, when they were last seen,
+  whether they've joined yet, and where they were added (from chat, in the
+  panel, or before);
+- the settings from the Configuration tab.
+
+You can add players, change their role and remove them there; changes apply
+at once. Settings are changed on the Configuration tab.
+
 ## Who can join
 
 **Only allowed players** is on by default: only players on the allowlist can
-join. Add them from chat with the [Matrix Helper Bot](https://github.com/danechristenson/home-assistant/tree/main/matrix_helper_bot):
+join. Add them in the panel, or from chat with the
+[Matrix Helper Bot](https://github.com/danechristenson/home-assistant/tree/main/matrix_helper_bot):
 
 1. Make up a random key of at least 16 characters (a password manager can
    generate one).
 2. Set it as **Matrix Helper Bot key** here and as `minecraft_key` in the
    Matrix Helper Bot, restart both, and give people the `minecraft`
    permission there.
-3. In the bot's Minecraft helpers room: `!minecraft add Gamertag`,
-   `!minecraft op Gamertag`, `!minecraft remove Gamertag`, `!minecraft list`.
+3. In a room with the bot: "@Helper add Gamertag", "@Helper add Gamertag as
+   operator", "@Helper make Gamertag a visitor", "@Helper remove Gamertag",
+   "@Helper list".
+
+The bot only changes players added from chat. Players added in the panel or
+before (such as your own account) can only be changed in the panel, so a
+helper can't demote or remove them.
 
 Changes apply at once, without a restart. A gamertag is all you need: the
 server records the player's Xbox ID the first time they join. Bedrock stores
-operators by Xbox ID, so making someone an operator before they've joined
-takes effect when they first do. Operators can only use commands while
+roles by Xbox ID, so a role chosen before someone's first join takes effect
+when they first do (until then they get the **New players are** level).
+
+**Roles:** members can play and build, visitors can only look around, and
+operators can also use commands and change game settings. Operators can only use commands while
 **Allow cheats** is on.
 
 Turning **Only allowed players** off lets anyone who finds the server join,
@@ -85,7 +109,8 @@ your home can't connect, forward UDP 19132 to Home Assistant, after reading
 [Before you forward ports](https://github.com/danechristenson/home-assistant#before-you-forward-ports).
 
 The Matrix Helper Bot reaches the add-on on port 8790, which only answers
-Home Assistant's internal network, with the key.
+Home Assistant's internal network, with the key. The panel (port 8791) only
+answers Home Assistant's sidebar.
 
 ## Backups
 

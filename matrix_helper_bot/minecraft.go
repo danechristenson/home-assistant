@@ -61,6 +61,40 @@ func (b *Bot) minecraftCall(method, path string, body any) (map[string]json.RawM
 	return result, nil
 }
 
+// roleWords are the ways people name Bedrock's roles
+var roleWords = map[string]string{
+	"visitor": "visitor", "visitors": "visitor", "guest": "visitor",
+	"member": "member", "members": "member", "user": "member", "player": "member", "normal": "member",
+	"operator": "operator", "operators": "operator", "op": "operator", "ops": "operator",
+}
+
+// splitRole reads a gamertag and an optional role from the end: "Steve as
+// operator", "Steve a user", "Steve to visitor". With connector set, a role
+// only counts after one of those words, so gamertags ending in a role word
+// ("Best Player") stay whole.
+func splitRole(words []string, connector bool) (string, string) {
+	n := len(words)
+	if n < 2 {
+		return strings.Join(words, " "), ""
+	}
+	role, ok := roleWords[strings.ToLower(words[n-1])]
+	if !ok {
+		return strings.Join(words, " "), ""
+	}
+	rest, connected := words[:n-1], false
+	for len(rest) > 0 {
+		last := strings.ToLower(rest[len(rest)-1])
+		if last != "a" && last != "an" && last != "as" && last != "to" {
+			break
+		}
+		rest, connected = rest[:len(rest)-1], true
+	}
+	if len(rest) == 0 || (connector && !connected) {
+		return strings.Join(words, " "), ""
+	}
+	return strings.Join(rest, " "), role
+}
+
 func (b *Bot) minecraft(sender id.UserID, room id.RoomID, words []string) error {
 	if !b.helpers[sender].Minecraft {
 		return refuse("You don't have permission to manage Minecraft players.")
@@ -98,14 +132,26 @@ func (b *Bot) minecraft(sender id.UserID, room id.RoomID, words []string) error 
 		return nil
 
 	case "add", "allow":
-		// Keep an operator an operator if they're added again
-		return b.setPlayer(sender, room, gamertag, "")
+		// "add Steve as operator"; without a role, an existing player keeps
+		// theirs and new players are members
+		name, role := splitRole(words[1:], true)
+		return b.setPlayer(sender, room, name, role)
+
+	case "make", "set", "change":
+		name, role := splitRole(words[1:], false)
+		if role == "" {
+			return refuse("Make them what? Like: %s make %s a member (or an operator, or a visitor).", b.name, gamertag)
+		}
+		return b.setPlayer(sender, room, name, role)
 
 	case "op", "operator":
 		return b.setPlayer(sender, room, gamertag, "operator")
 
-	case "member", "deop":
+	case "member", "deop", "user":
 		return b.setPlayer(sender, room, gamertag, "member")
+
+	case "visitor":
+		return b.setPlayer(sender, room, gamertag, "visitor")
 
 	case "remove", "delete", "kick":
 		result, err := b.minecraftCall(http.MethodPost, "/api/bot/players/remove", map[string]string{"name": gamertag})
@@ -139,18 +185,19 @@ func (b *Bot) setPlayer(sender id.UserID, room id.RoomID, gamertag, role string)
 	}
 	info("%s set Minecraft player %s to %s", sender, player.Name, player.Role)
 
+	roleText := map[string]string{"operator": "an operator", "member": "a member", "visitor": "a visitor"}[player.Role]
 	var message string
 	switch {
-	case player.Role == "operator" && !player.Joined:
-		message = fmt.Sprintf("%s can join the Minecraft server now, and becomes an operator the first time they do.", player.Name)
-	case player.Role == "operator":
-		message = fmt.Sprintf("%s is now an operator on the Minecraft server.", player.Name)
-	case role == "member":
-		message = fmt.Sprintf("%s is a normal player on the Minecraft server now.", player.Name)
+	case created && !player.Joined:
+		message = fmt.Sprintf("%s can join the Minecraft server now, as %s once they first join.", player.Name, roleText)
 	case created:
-		message = fmt.Sprintf("%s can join the Minecraft server now.", player.Name)
+		message = fmt.Sprintf("%s can join the Minecraft server now, as %s.", player.Name, roleText)
+	case role == "":
+		message = fmt.Sprintf("%s was already allowed on the Minecraft server (as %s).", player.Name, roleText)
+	case !player.Joined:
+		message = fmt.Sprintf("%s will be %s the first time they join.", player.Name, roleText)
 	default:
-		message = fmt.Sprintf("%s was already allowed on the Minecraft server.", player.Name)
+		message = fmt.Sprintf("%s is %s on the Minecraft server now.", player.Name, roleText)
 	}
 	b.say(room, fmt.Sprintf("%s: %s", sender, message))
 	return nil

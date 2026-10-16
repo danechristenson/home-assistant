@@ -681,7 +681,7 @@ func (b *Bot) worker() {
 	}
 }
 
-var minecraftShorthand = []string{"add", "allow", "op", "operator", "member", "deop", "remove", "delete", "kick", "list"}
+var minecraftShorthand = []string{"add", "allow", "make", "set", "change", "op", "operator", "member", "deop", "user", "visitor", "remove", "delete", "kick", "list"}
 
 func (b *Bot) handle(evt *event.Event) {
 	words, addressed := b.addressed(evt)
@@ -757,11 +757,11 @@ func (b *Bot) help(permissions Permissions, room id.RoomID) {
 	if permissions.Minecraft {
 		lines = append(lines,
 			"Minecraft (use the player's Xbox gamertag):",
-			"  add Gamertag — let them join the server",
-			"  op Gamertag — make them an operator (applies once they've joined at least once)",
-			"  member Gamertag — make an operator a normal player again",
+			"  add Gamertag — let them join the server (as a member); add Gamertag as operator — with a role",
+			"  make Gamertag a member / an operator / a visitor — change their role (applies once they've joined at least once)",
 			"  remove Gamertag — take them off the server",
-			"  list — who's been added from chat")
+			"  list — who's been added from chat",
+			"Members play and build, visitors only look around, operators can use commands. I only change players added from chat; the rest are managed in Home Assistant.")
 	}
 	if permissions.ResetPasswords {
 		lines = append(lines, fmt.Sprintf("Passwords: reset-password @name — a new password for someone who forgot theirs. "+

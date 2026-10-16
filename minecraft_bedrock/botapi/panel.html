@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minecraft</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #17191c; --muted: #6b7380; --line: #e3e8f0; --card: #f6f8fb;
+          --accent: #3c8527; --accent-fg: #fff; --warn: #b76e00; --bad: #c62828; --pill: #e8f3e3; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #15191e; --fg: #ebeef2; --muted: #a2abb6; --line: #2c333c; --card: #1c2128; --pill: #22351c; --warn: #e5a50a; --bad: #ef6b6b; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { margin: 0; font-size: 1.5rem; }
+  h2 { margin: 0 0 12px; font-size: 1.1rem; }
+  p, .muted { color: var(--muted); }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-top: 18px; }
+  .status { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--pill); font-size: 0.85rem; white-space: nowrap; }
+  .pill.off { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 6px; vertical-align: middle; }
+  .dot.off { background: var(--muted); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .name { font-weight: 600; overflow-wrap: anywhere; }
+  .note { font-size: 0.82rem; color: var(--muted); }
+  select, input, button { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  button.remove { color: var(--bad); }
+  button:disabled { opacity: 0.6; cursor: default; }
+  form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  form input { flex: 1 1 180px; min-width: 0; }
+  .error { color: var(--bad); margin: 10px 0 0; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; overflow-wrap: anywhere; }
+  @media (max-width: 640px) {
+    thead { display: none; }
+    tr { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    td { border: none; padding: 0; }
+    td.when, td.from { grid-column: 1; }
+    td.actions { grid-column: 2; grid-row: 1 / span 3; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+    dl { grid-template-columns: 1fr; gap: 0; }
+    dd { margin-bottom: 8px; }
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">Minecraft</h1>
+  <div class="status" id="status"><span class="pill off">Loading…</span></div>
+
+  <section>
+    <h2>Players</h2>
+    <p id="allowlist-note"></p>
+    <table>
+      <thead><tr><th>Gamertag</th><th>Role</th><th>Last seen</th><th>Added</th><th></th></tr></thead>
+      <tbody id="players"></tbody>
+    </table>
+    <p id="empty" class="muted" hidden>Nobody is on the allowlist yet.</p>
+    <form id="add">
+      <input id="add-name" placeholder="Xbox gamertag" maxlength="24" autocomplete="off" required>
+      <select id="add-role">
+        <option value="member">Member</option>
+        <option value="operator">Operator</option>
+        <option value="visitor">Visitor</option>
+      </select>
+      <button class="primary" type="submit">Add player</button>
+    </form>
+    <p class="error" id="error" hidden></p>
+    <p class="note">Members can play and build, visitors can only look around, operators can use commands
+      (with cheats allowed). A role chosen before someone's first join applies when they first connect.</p>
+  </section>
+
+  <section>
+    <h2>Settings</h2>
+    <dl id="settings"></dl>
+    <p class="note">Change these on the add-on's Configuration tab (Settings → Add-ons → Minecraft Bedrock).</p>
+  </section>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const roleNames = { visitor: "Visitor", member: "Member", operator: "Operator" };
+  const sourceNames = { chat: "From chat", panel: "In this panel", "": "Before" };
+  const valueNames = {
+    survival: "Survival", creative: "Creative", adventure: "Adventure",
+    peaceful: "Peaceful", easy: "Easy", normal: "Normal", hard: "Hard",
+    visitor: "Visitor", member: "Member", operator: "Operator",
+    nethernet: "NetherNet", raknet: "RakNet",
+  };
+  const settingNames = [
+    ["server_name", "Server name"], ["level_name", "World"], ["gamemode", "Game mode"], ["difficulty", "Difficulty"],
+    ["allow_cheats", "Allow cheats"], ["allow_list", "Only allowed players"], ["default_player_permission_level", "New players are"],
+    ["max_players", "Most players at once"], ["view_distance", "View distance"], ["tick_distance", "Simulation distance"],
+    ["player_idle_timeout", "Kick idle players after (minutes)"], ["lan_visibility", "Show on the home network"],
+    ["server_port", "Port (IPv4)"], ["server_port_v6", "Port (IPv6)"], ["transport", "Connection type"],
+    ["helper_bot_key", "Matrix Helper Bot key"],
+  ];
+
+  function el(tag, text, className) {
+    const node = document.createElement(tag);
+    if (text !== undefined) node.textContent = text;
+    if (className) node.className = className;
+    return node;
+  }
+
+  function ago(iso) {
+    if (!iso) return "Never";
+    const minutes = Math.round((Date.now() - new Date(iso)) / 60000);
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes} min ago`;
+    if (minutes < 1440) return `${Math.round(minutes / 60)} h ago`;
+    return new Date(iso).toLocaleDateString();
+  }
+
+  function value(v) {
+    if (v === true) return "Yes";
+    if (v === false) return "No";
+    if (v === "" || v === null || v === undefined) return "—";
+    return valueNames[v] ?? String(v);
+  }
+
+  async function call(path, body) {
+    const response = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
+    return data;
+  }
+
+  function showError(message) {
+    $("error").textContent = message || "";
+    $("error").hidden = !message;
+  }
+
+  function render(state) {
+    const s = state.settings || {};
+    $("title").textContent = s.server_name || "Minecraft";
+    const status = $("status");
+    status.replaceChildren();
+    const running = el("span", state.server.running ? "Running" : "Not running", "pill" + (state.server.running ? "" : " off"));
+    running.prepend(el("span", "", "dot" + (state.server.running ? "" : " off")));
+    status.append(running, el("span", `Bedrock ${state.server.version || "?"}`, "pill off"), el("span", `World: ${s.level_name || "?"}`, "pill off"));
+    const online = state.server.online || [];
+    status.append(el("span", online.length ? `Online: ${online.join(", ")}` : "Nobody online", "pill off"));
+
+    $("allowlist-note").textContent = s.allow_list
+      ? "Only these players can join."
+      : "The allowlist is off: anyone who finds the server can join. Turn on \"Only allowed players\" on the Configuration tab.";
+
+    const body = $("players");
+    body.replaceChildren();
+    $("empty").hidden = state.players.length > 0;
+    for (const p of state.players) {
+      const row = document.createElement("tr");
+      const name = el("td");
+      name.append(el("div", p.name, "name"));
+      if (p.online) name.append(el("span", "Online", "pill"));
+      else if (!p.joined) name.append(el("div", "Hasn't joined yet", "note"));
+
+      const roleCell = el("td");
+      const select = document.createElement("select");
+      for (const [key, label] of Object.entries(roleNames)) {
+        const option = el("option", label);
+        option.value = key;
+        option.selected = key === p.role;
+        select.append(option);
+      }
+      select.setAttribute("aria-label", `Role for ${p.name}`);
+      select.onchange = () => update({ name: p.name, role: select.value }, "api/players");
+      roleCell.append(select);
+      if (p.pending) roleCell.append(el("div", "When they first join", "note"));
+      else if (p.default) roleCell.append(el("div", "Server default", "note"));
+
+      const when = el("td", ago(p.lastSeen), "when");
+      const from = el("td", sourceNames[p.source] ?? "Before", "from note");
+      const actions = el("td", undefined, "actions");
+      const remove = el("button", "Remove", "remove");
+      remove.onclick = () => {
+        if (confirm(`Remove ${p.name}? They'll be kicked if they're playing.`)) update({ name: p.name }, "api/players/remove");
+      };
+      actions.append(remove);
+      row.append(name, roleCell, when, from, actions);
+      body.append(row);
+    }
+
+    const settings = $("settings");
+    settings.replaceChildren();
+    for (const [key, label] of settingNames) {
+      if (!(key in s)) continue;
+      settings.append(el("dt", label), el("dd", value(s[key])));
+    }
+  }
+
+  async function update(body, path) {
+    showError("");
+    try {
+      render(await call(path, body));
+    } catch (e) {
+      showError(e.message);
+      load();
+    }
+  }
+
+  async function load() {
+    try {
+      render(await call("api/state"));
+    } catch (e) {
+      showError(`Couldn't load the server state: ${e.message}`);
+    }
+  }
+
+  $("add").onsubmit = async (event) => {
+    event.preventDefault();
+    const button = event.submitter;
+    button.disabled = true;
+    await update({ name: $("add-name").value.trim(), role: $("add-role").value }, "api/players");
+    if ($("error").hidden) $("add-name").value = "";
+    button.disabled = false;
+  };
+
+  load();
+  setInterval(() => { if (!document.hidden) load(); }, 15000);
+</script>
+</body>
+</html>
