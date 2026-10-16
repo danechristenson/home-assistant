@@ -28,7 +28,6 @@ Or click the button above to add the repository in one step.
 | [Matrix Helper Bot](./matrix_helper_bot) | Companion to Matrix: lets people you choose reset forgotten passwords and manage Minecraft players from encrypted chat rooms. Optional; no ports. |
 | [Matrix Call Relay](./matrix_call_relay) | Companion to Matrix: lets voice and video calls connect between different networks. Optional; needs router port forwards. |
 | [Minecraft Bedrock](./minecraft_bedrock) | Minecraft Bedrock server (itzg image), with players managed from chat through the Matrix Helper Bot. |
-| [VoceChat](./vocechat) | Private group chat for your family or team, hosted on Home Assistant |
 
 ## Before you forward ports
 
@@ -39,13 +38,13 @@ behind it. A mistake can expose your home network, so:
 
 **Prefer a reverse proxy for web traffic.** Run one reverse proxy (such as
 the NGINX Proxy Manager add-on) on port 443 with HTTPS, and forward only 443
-to it. Matrix and VoceChat both go behind it; their docs explain how.
+to it. Matrix goes behind it; its docs explain how.
 
 **Never forward these:**
 
 | Port | Why |
 | ---- | --- |
-| 8008 (Matrix), 3000 (VoceChat) | Unencrypted unless the add-on's own HTTPS is on. Use the reverse proxy instead. |
+| 8008 (Matrix) | Unencrypted unless the add-on's own HTTPS is on. Use the reverse proxy instead. |
 | 8123 (Home Assistant) | Your whole home's controls. Use a VPN (many routers, e.g. GL.iNet, have WireGuard built in) or Home Assistant Cloud. If you must expose it, put it behind the proxy and turn on multi-factor authentication for every user. |
 | 7880, 7883 (Matrix Group Calls) | Reached through the reverse proxy over HTTPS, never directly. |
 | 81 (NGINX Proxy Manager admin) | Controls all your proxy hosts and certificates. |
