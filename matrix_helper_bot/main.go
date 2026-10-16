@@ -1,8 +1,9 @@
 // Matrix Helper Bot: lets chosen people run a few admin tasks from chat.
 //
-// Commands only come from the bot's own encrypted "Server helpers" room,
-// which only the people listed in the add-on options are in, and only from
-// devices their owner has verified (cross-signed). The bot is a server
+// Each permission has its own encrypted room ("Password helpers",
+// "Minecraft helpers"), which only the people given that permission in the
+// add-on options are in. Commands only count from devices their owner has
+// verified (cross-signed), and each room only accepts its own commands. The bot is a server
 // admin, so it checks every request itself: who may do what comes from the
 // options, and it only ever sends the admin commands in this file, with
 // validated arguments.
@@ -13,6 +14,9 @@
 // the password in the encrypted helpers room, and deletes that message after
 // a few minutes. It refuses to touch server admins, helpers, deactivated
 // accounts and the bot itself.
+//
+// Minecraft: the bot calls the Minecraft add-on's bot API (with its key) to
+// allow, promote and remove players by gamertag.
 package main
 
 import (
@@ -40,6 +44,21 @@ import (
 	"maunium.net/go/mautrix/id"
 )
 
+// roomKind is one permission's room
+type roomKind struct {
+	key     string
+	name    string
+	topic   string
+	allowed func(Permissions) bool
+}
+
+var roomKinds = []roomKind{
+	{"passwords", "Password helpers", "Ask the helper bot to reset forgotten passwords. Type !help to see how.",
+		func(p Permissions) bool { return p.ResetPasswords }},
+	{"minecraft", "Minecraft helpers", "Ask the helper bot to let people onto the Minecraft server. Type !help to see how.",
+		func(p Permissions) bool { return p.Minecraft }},
+}
+
 const (
 	optionsFile  = "/data/options.json"
 	stateFile    = "/data/state.json"
@@ -60,14 +79,18 @@ type Options struct {
 	Password       string `json:"password"`
 	MessageMinutes int    `json:"password_message_minutes"`
 	MatrixURL      string `json:"matrix_url"`
+	MinecraftURL   string `json:"minecraft_url"`
+	MinecraftKey   string `json:"minecraft_key"`
 	Helpers        []struct {
 		User           string `json:"user"`
 		ResetPasswords bool   `json:"reset_passwords"`
+		Minecraft      bool   `json:"minecraft"`
 	} `json:"helpers"`
 }
 
 type Permissions struct {
 	ResetPasswords bool
+	Minecraft      bool
 }
 
 type Redaction struct {
@@ -78,7 +101,7 @@ type Redaction struct {
 
 // State survives restarts
 type State struct {
-	HelpersRoom       id.RoomID                 `json:"helpers_room"`
+	Rooms             map[string]id.RoomID      `json:"rooms"`
 	CrossSignedDevice id.DeviceID               `json:"cross_signed_device"`
 	Redactions        []Redaction               `json:"redactions"`
 	Resets            map[id.UserID][]time.Time `json:"resets"`
@@ -130,6 +153,11 @@ func main() {
 	options.Username = strings.SplitN(strings.TrimPrefix(strings.ToLower(strings.TrimSpace(options.Username)), "@"), ":", 2)[0]
 	if options.MatrixURL == "" {
 		options.MatrixURL = defaultMatrixURL()
+	}
+	if options.MinecraftURL == "" {
+		// The Minecraft add-on uses the host network, which Home Assistant's
+		// internal network reaches at its gateway
+		options.MinecraftURL = "http://172.30.32.1:8789"
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -225,22 +253,22 @@ func run(parent context.Context, options Options) error {
 	}
 	bot.loadHelpers()
 	bot.findAdminRoom()
-	if err := bot.ensureHelpersRoom(); err != nil {
-		return fmt.Errorf("setting up the Server helpers room: %w", err)
+	if err := bot.ensureRooms(); err != nil {
+		return fmt.Errorf("setting up the helper rooms: %w", err)
 	}
 
 	syncer := cli.Syncer.(*mautrix.DefaultSyncer)
 	syncer.OnSync(cli.DontProcessOldEvents)
 	syncer.OnEventType(event.EventMessage, bot.onMessage)
 	helper.DecryptErrorCallback = func(evt *event.Event, err error) {
-		if evt.RoomID == bot.state.HelpersRoom {
+		if bot.kindOf(evt.RoomID) != nil {
 			warn("Could not decrypt a message from %s: %v", evt.Sender, err)
 		}
 	}
 
 	go bot.worker()
 	go bot.housekeeping()
-	info("Ready: %d helper(s) in the Server helpers room", len(bot.helpers))
+	info("Ready: %d helper(s)", len(bot.helpers))
 	return cli.SyncWithContext(ctx)
 }
 
@@ -252,6 +280,9 @@ func (b *Bot) loadState() {
 	}
 	if b.state.Resets == nil {
 		b.state.Resets = map[id.UserID][]time.Time{}
+	}
+	if b.state.Rooms == nil {
+		b.state.Rooms = map[string]id.RoomID{}
 	}
 }
 
@@ -305,7 +336,10 @@ func (b *Bot) loadHelpers() {
 			warn("Ignoring helper '%s': use an account on %s, like @name:%s", entry.User, b.server, b.server)
 			continue
 		}
-		b.helpers[id.UserID(user)] = Permissions{ResetPasswords: entry.ResetPasswords}
+		b.helpers[id.UserID(user)] = Permissions{ResetPasswords: entry.ResetPasswords, Minecraft: entry.Minecraft}
+		if entry.Minecraft && b.options.MinecraftKey == "" {
+			warn("%s has the minecraft permission, but 'minecraft_key' isn't set; copy it from the Minecraft add-on's panel", user)
+		}
 	}
 	if len(b.helpers) == 0 {
 		warn("No helpers are listed on the Configuration tab, so nobody can use the bot yet.")
@@ -343,8 +377,41 @@ func (b *Bot) members(room id.RoomID) map[id.UserID]mautrix.JoinedMember {
 
 func intPtr(value int) *int { return &value }
 
-func (b *Bot) ensureHelpersRoom() error {
-	room := b.state.HelpersRoom
+// enabled is whether a permission's room is in use
+func (b *Bot) enabled(kind roomKind) bool {
+	if kind.key == "minecraft" && b.options.MinecraftKey == "" {
+		return false
+	}
+	for _, permissions := range b.helpers {
+		if kind.allowed(permissions) {
+			return true
+		}
+	}
+	return b.state.Rooms[kind.key] != ""
+}
+
+func (b *Bot) ensureRooms() error {
+	for _, kind := range roomKinds {
+		if b.enabled(kind) {
+			if err := b.ensureRoom(kind); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (b *Bot) kindOf(room id.RoomID) *roomKind {
+	for i, kind := range roomKinds {
+		if room != "" && b.state.Rooms[kind.key] == room {
+			return &roomKinds[i]
+		}
+	}
+	return nil
+}
+
+func (b *Bot) ensureRoom(kind roomKind) error {
+	room := b.state.Rooms[kind.key]
 	if room != "" {
 		var create event.CreateEventContent
 		if err := b.cli.StateEvent(b.ctx, room, event.StateCreate, "", &create); err != nil {
@@ -352,15 +419,17 @@ func (b *Bot) ensureHelpersRoom() error {
 		}
 	}
 	if room == "" {
-		invite := make([]id.UserID, 0, len(b.helpers))
-		for user := range b.helpers {
-			invite = append(invite, user)
+		invite := []id.UserID{}
+		for user, permissions := range b.helpers {
+			if kind.allowed(permissions) {
+				invite = append(invite, user)
+			}
 		}
 		slices.Sort(invite)
 		encryption := &event.EncryptionEventContent{Algorithm: id.AlgorithmMegolmV1}
 		resp, err := b.cli.CreateRoom(b.ctx, &mautrix.ReqCreateRoom{
-			Name:       "Server helpers",
-			Topic:      "Ask the helper bot to help with accounts. Type !help to see what you can do.",
+			Name:       kind.name,
+			Topic:      kind.topic,
 			Preset:     "private_chat",
 			Visibility: "private",
 			Invite:     invite,
@@ -389,21 +458,25 @@ func (b *Bot) ensureHelpersRoom() error {
 			_ = store.SetEncryptionEvent(b.ctx, room, encryption)
 		}
 		b.mu.Lock()
-		b.state.HelpersRoom = room
+		b.state.Rooms[kind.key] = room
 		b.saveState()
 		b.mu.Unlock()
-		info("Created the encrypted Server helpers room (%s)", room)
+		info("Created the encrypted %s room (%s)", kind.name, room)
 	}
-	b.syncMembers()
+	b.syncMembers(kind)
 	return nil
 }
 
-// syncMembers invites listed helpers who aren't in the room and removes anyone else
-func (b *Bot) syncMembers() {
-	room := b.state.HelpersRoom
+// syncMembers invites helpers with the room's permission who aren't in it,
+// and removes anyone else
+func (b *Bot) syncMembers(kind roomKind) {
+	room := b.state.Rooms[kind.key]
+	if room == "" {
+		return
+	}
 	resp, err := b.cli.Members(b.ctx, room)
 	if err != nil {
-		warn("Could not check who is in the Server helpers room: %v", err)
+		warn("Could not check who is in the %s room: %v", kind.name, err)
 		return
 	}
 	present := map[id.UserID]event.Membership{}
@@ -413,20 +486,23 @@ func (b *Bot) syncMembers() {
 			present[id.UserID(*evt.StateKey)] = member.Membership
 		}
 	}
-	for user := range b.helpers {
+	for user, permissions := range b.helpers {
+		if !kind.allowed(permissions) {
+			continue
+		}
 		if membership := present[user]; membership != event.MembershipJoin && membership != event.MembershipInvite {
 			if _, err := b.cli.InviteUser(b.ctx, room, &mautrix.ReqInviteUser{UserID: user}); err != nil {
 				warn("Could not invite %s: %v", user, err)
 			} else {
-				info("Invited %s to the Server helpers room", user)
+				info("Invited %s to the %s room", user, kind.name)
 			}
 		}
 	}
 	for user, membership := range present {
-		if _, listed := b.helpers[user]; user != b.cli.UserID && !listed &&
+		if user != b.cli.UserID && !kind.allowed(b.helpers[user]) &&
 			(membership == event.MembershipJoin || membership == event.MembershipInvite) {
-			if _, err := b.cli.KickUser(b.ctx, room, &mautrix.ReqKickUser{UserID: user, Reason: "Not listed as a helper in the Matrix Helper Bot settings"}); err == nil {
-				info("Removed %s from the Server helpers room: not listed as a helper", user)
+			if _, err := b.cli.KickUser(b.ctx, room, &mautrix.ReqKickUser{UserID: user, Reason: "Doesn't have this permission in the Matrix Helper Bot settings"}); err == nil {
+				info("Removed %s from the %s room: doesn't have that permission", user, kind.name)
 			}
 		}
 	}
@@ -444,7 +520,9 @@ func (b *Bot) housekeeping() {
 		}
 		b.redactDue()
 		if time.Since(lastMembers) > membershipInterval {
-			b.syncMembers()
+			for _, kind := range roomKinds {
+				b.syncMembers(kind)
+			}
 			lastMembers = time.Now()
 		}
 		if b.adminRoom == "" {
@@ -465,7 +543,7 @@ func (b *Bot) onMessage(_ context.Context, evt *event.Event) {
 		if waiting != nil {
 			waiting <- evt
 		}
-	case evt.RoomID == b.state.HelpersRoom && evt.Sender != b.cli.UserID:
+	case b.kindOf(evt.RoomID) != nil && evt.Sender != b.cli.UserID:
 		select {
 		case b.work <- evt:
 		default:
@@ -488,6 +566,11 @@ func (b *Bot) worker() {
 }
 
 func (b *Bot) handle(evt *event.Event) {
+	kind := b.kindOf(evt.RoomID)
+	if kind == nil {
+		return
+	}
+	room := evt.RoomID
 	content := evt.Content.AsMessage()
 	if content.MsgType != event.MsgText && content.MsgType != event.MsgNotice {
 		return
@@ -514,39 +597,51 @@ func (b *Bot) handle(evt *event.Event) {
 
 	if !evt.Mautrix.WasEncrypted || evt.Mautrix.TrustState < minTrust {
 		warn("Ignored %s from %s: sent from a session they haven't verified", words[0], evt.Sender)
-		b.say("I only take requests from verified sessions. Verify this device in your app (Settings → Security / Encryption), then try again.")
+		b.say(room, "I only take requests from verified sessions. Verify this device in your app (Settings → Security / Encryption), then try again.")
+		return
+	}
+	// Someone who lost the permission since joining
+	if !kind.allowed(b.helpers[evt.Sender]) {
+		b.say(room, "You don't have this permission any more.")
 		return
 	}
 
 	command := strings.ToLower(words[0])
 	var err error
-	switch command {
-	case "!help":
-		b.help(evt.Sender)
-	case "!reset-password", "!resetpassword", "!reset":
-		err = b.reset(evt.Sender, content, words[1:])
+	switch {
+	case command == "!help":
+		b.help(*kind, room)
+	case kind.key == "passwords" && (command == "!reset-password" || command == "!resetpassword" || command == "!reset"):
+		err = b.reset(evt.Sender, room, content, words[1:])
+	case kind.key == "minecraft" && (command == "!minecraft" || command == "!mc"):
+		err = b.minecraft(evt.Sender, room, words[1:])
 	default:
-		b.say(fmt.Sprintf("I don't know %s. Type !help to see what you can do.", words[0]))
+		b.say(room, fmt.Sprintf("I don't know %s here. Type !help to see what you can do in this room.", words[0]))
 	}
 	var refusal Refused
 	if errors.As(err, &refusal) {
-		b.say(refusal.message)
+		b.say(room, refusal.message)
 	} else if err != nil {
 		log.Printf("[ERROR] %s from %s failed: %v", command, evt.Sender, err)
-		b.say("Something went wrong. The Matrix Helper Bot log has the details.")
+		b.say(room, "Something went wrong. The Matrix Helper Bot log has the details.")
 	}
 }
 
-func (b *Bot) help(sender id.UserID) {
-	lines := []string{"Things you can ask me:"}
-	if b.helpers[sender].ResetPasswords {
-		lines = append(lines, fmt.Sprintf("!reset-password @name — give someone a new password if they forgot theirs. "+
+func (b *Bot) help(kind roomKind, room id.RoomID) {
+	switch kind.key {
+	case "passwords":
+		b.say(room, fmt.Sprintf("!reset-password @name — give someone a new password if they forgot theirs. "+
 			"I post it here, and the message deletes itself after %d minutes.", b.options.MessageMinutes))
+	case "minecraft":
+		b.say(room, strings.Join([]string{
+			"Minecraft commands (use the player's Xbox gamertag):",
+			"!minecraft add Gamertag — let them join the server",
+			"!minecraft op Gamertag — make them an operator (applies once they've joined at least once)",
+			"!minecraft member Gamertag — make an operator a normal player again",
+			"!minecraft remove Gamertag — take them off the server",
+			"!minecraft list — who's been added from chat",
+		}, "\n"))
 	}
-	if len(lines) == 1 {
-		lines = []string{"You don't have any permissions yet. The server admin can give you some in the Matrix Helper Bot settings."}
-	}
-	b.say(strings.Join(lines, "\n"))
 }
 
 var matrixToPattern = regexp.MustCompile(`https://matrix\.to/#/(@[^"?/<>]+)`)
@@ -594,7 +689,7 @@ func (b *Bot) target(content *event.MessageEventContent, words []string) (id.Use
 	return id.UserID(user), localpart, nil
 }
 
-func (b *Bot) reset(sender id.UserID, content *event.MessageEventContent, words []string) error {
+func (b *Bot) reset(sender id.UserID, room id.RoomID, content *event.MessageEventContent, words []string) error {
 	if !b.helpers[sender].ResetPasswords {
 		return refuse("You don't have permission to reset passwords.")
 	}
@@ -635,13 +730,13 @@ func (b *Bot) reset(sender id.UserID, content *event.MessageEventContent, words 
 	b.saveState()
 	b.mu.Unlock()
 	info("%s reset the password of %s", sender, user)
-	b.say(fmt.Sprintf("%s reset the password of %s.", sender, user))
-	sent := b.say(fmt.Sprintf("New password for %s: %s\nGive it to them privately. This message deletes itself in %d minutes. "+
+	b.say(room, fmt.Sprintf("%s reset the password of %s.", sender, user))
+	sent := b.say(room, fmt.Sprintf("New password for %s: %s\nGive it to them privately. This message deletes itself in %d minutes. "+
 		"Their other signed-in devices stay signed in.", user, password, b.options.MessageMinutes))
 	if sent != "" {
 		b.mu.Lock()
 		b.state.Redactions = append(b.state.Redactions, Redaction{
-			Room: b.state.HelpersRoom, Event: sent, Due: time.Now().Add(time.Duration(b.options.MessageMinutes) * time.Minute),
+			Room: room, Event: sent, Due: time.Now().Add(time.Duration(b.options.MessageMinutes) * time.Minute),
 		})
 		b.saveState()
 		b.mu.Unlock()
@@ -752,12 +847,12 @@ func randomHex(n int) string {
 	return hex.EncodeToString(raw)
 }
 
-// say posts an (encrypted) notice in the helpers room and returns its event ID
-func (b *Bot) say(text string) id.EventID {
-	resp, err := b.cli.SendMessageEvent(b.ctx, b.state.HelpersRoom, event.EventMessage,
+// say posts an (encrypted) notice in one of the bot's rooms and returns its event ID
+func (b *Bot) say(room id.RoomID, text string) id.EventID {
+	resp, err := b.cli.SendMessageEvent(b.ctx, room, event.EventMessage,
 		&event.MessageEventContent{MsgType: event.MsgNotice, Body: text})
 	if err != nil {
-		warn("Could not post in the Server helpers room: %v", err)
+		warn("Could not post in %s: %v", room, err)
 		return ""
 	}
 	return resp.EventID

@@ -7,7 +7,7 @@ RUN apk add --no-cache build-base
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
-COPY main.go ./
+COPY *.go ./
 RUN CGO_ENABLED=1 go build -tags goolm -trimpath -ldflags "-s -w" -o /matrix-helper-bot .
 
 FROM ${BUILD_FROM}

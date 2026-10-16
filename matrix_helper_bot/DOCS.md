@@ -1,7 +1,12 @@
 # Matrix Helper Bot
 
-Lets people you choose reset forgotten Matrix passwords from a chat room,
-without making them server admins.
+Lets people you choose reset forgotten Matrix passwords, and let players
+onto your Minecraft server, from chat, without making them admins.
+
+Each permission has its own end-to-end encrypted room: **Password helpers**
+and **Minecraft helpers**. People are only invited to the rooms for the
+permissions you give them, so someone who can only manage Minecraft players
+never sees passwords.
 
 ## Do you need this?
 
@@ -37,11 +42,16 @@ password there (**Password for phone apps**); this is for everyone else.
    helpers:
      - user: "@alex:matrix.example.com"
        reset_passwords: true
+       minecraft: true
+     - user: "@sam:matrix.example.com"
+       minecraft: true
    ```
 
-4. **Start it.** The log shows `Ready: 1 helper(s) in the Server helpers
-   room`. Each helper gets an invite to the encrypted **Server helpers**
-   room; once they join, they can type `!help` there.
+   For Minecraft, also set `minecraft_key` (see [Minecraft](#minecraft)).
+
+4. **Start it.** The log shows `Ready: 2 helper(s)`. Helpers get invites to
+   the rooms for their permissions; once they join, they can type `!help`
+   there.
 
 5. **Helpers must use a verified session.** The bot only reads requests
    from, and only lets its replies be read on, devices their owner has
@@ -49,9 +59,9 @@ password there (**Password for phone apps**); this is for everyone else.
    in Element: All settings → Encryption/Sessions). On an unverified device
    the bot's messages show as "Unable to decrypt", and it ignores requests.
 
-## Using it
+## Resetting passwords
 
-In the Server helpers room:
+In the Password helpers room:
 
 - `!help` lists what you're allowed to do.
 - `!reset-password @name` gives that person a new password. You can type
@@ -71,6 +81,30 @@ The bot refuses to reset:
 
 Each helper can reset at most 5 passwords an hour.
 
+## Minecraft
+
+Needs the **Minecraft Server for HA** add-on from
+[danechristenson/HomeAssistantAddOns](https://github.com/danechristenson/HomeAssistantAddOns),
+which has the bot hook. Open its panel, scroll to **Players**, and copy the
+**Bot key** into this add-on's `minecraft_key` option. Then restart this
+add-on.
+
+In the Minecraft helpers room, use the player's Xbox gamertag:
+
+- `!minecraft add Gamertag` lets them join the server, straight away.
+- `!minecraft op Gamertag` makes them an operator.
+- `!minecraft member Gamertag` makes an operator a normal player again.
+- `!minecraft remove Gamertag` takes them off the server (and kicks them if
+  they're on).
+- `!minecraft list` shows who's been added from chat, and who hasn't joined
+  yet.
+
+A gamertag is all you need: the Minecraft add-on learns the player's Xbox ID
+from the server log the first time they join. Bedrock stores operators by
+Xbox ID, so `!minecraft op` for someone who hasn't joined yet takes effect
+the first time they do. Players configured on the Minecraft panel itself
+aren't affected.
+
 ## Configuration
 
 ### Option: `username` / `password`
@@ -80,16 +114,22 @@ The bot's account from setup steps 1 and 2.
 ### Option: `helpers`
 
 Who may use the bot, and what each may do. `user` is their Matrix ID (just
-the name works too). Permissions:
+the name works too). Permissions, each with its own room:
 
-- `reset_passwords`: may use `!reset-password`.
+- `reset_passwords`: may use `!reset-password` (Password helpers room).
+- `minecraft`: may use the `!minecraft` commands (Minecraft helpers room).
 
-The bot invites everyone listed to the Server helpers room and removes
+The bot invites people to the rooms for their permissions and removes
 anyone else. After changing the list, restart the add-on.
+
+### Option: `minecraft_key` / `minecraft_url`
+
+The Minecraft add-on's bot key, from its panel. Leave `minecraft_url` empty:
+the bot finds the Minecraft add-on on Home Assistant's internal network.
 
 ### Option: `password_message_minutes`
 
-How long a new password stays in the Server helpers room. Default 10.
+How long a new password stays in the Password helpers room. Default 10.
 
 ### Option: `matrix_url`
 
@@ -98,7 +138,7 @@ Assistant's internal network. Only set it if the log says it can't connect.
 
 ## Security
 
-- **The Server helpers room is end-to-end encrypted.** Requests and new
+- **The helper rooms are end-to-end encrypted.** Requests and new
   passwords are only readable on the helpers' verified devices and the
   bot's; your server only stores them encrypted. The bot cross-signs its
   own device, so helpers' apps show it as verified, and it withholds its
@@ -117,8 +157,12 @@ Assistant's internal network. Only set it if the log says it can't connect.
   the account yourself. The bot only ever sends `users reset-password`, for
   a single checked username. Its encryption keys are kept in the add-on's
   data folder (included in Home Assistant backups).
-- Nothing is reachable from outside: the bot only talks to the Matrix
-  add-on over Home Assistant's internal network, and opens no ports.
+- **The Minecraft key** only lets the bot add, promote and remove players
+  added from chat; the Minecraft add-on only accepts it from Home
+  Assistant's internal network.
+- Nothing is reachable from outside: the bot only talks to the Matrix and
+  Minecraft add-ons over Home Assistant's internal network, and opens no
+  ports.
 
 ## Support
 

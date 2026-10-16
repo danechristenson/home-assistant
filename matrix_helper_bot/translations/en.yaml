@@ -11,15 +11,26 @@ configuration:
     name: Helpers
     description: >-
       Who may use the bot, and what each may do. 'user' is their Matrix ID
-      (e.g. @alex:matrix.example.com). Turn on 'reset_passwords' to let them
-      give people a new password. The bot invites helpers to its encrypted
-      Server helpers room and removes anyone else. Helpers must use a
+      (e.g. @alex:matrix.example.com). 'reset_passwords' lets them give
+      people a new password; 'minecraft' lets them add, promote and remove
+      Minecraft players. Each permission has its own encrypted room, so
+      someone with only 'minecraft' never sees passwords. Helpers must use a
       verified session.
   password_message_minutes:
     name: Delete password messages after (minutes)
     description: >-
       How long a new password stays visible in the Server helpers room before
       the bot deletes the message.
+  minecraft_key:
+    name: Minecraft bot key
+    description: >-
+      Needed for the 'minecraft' permission. Copy it from the Minecraft
+      Server add-on's panel (Players → Bot key).
+  minecraft_url:
+    name: Minecraft add-on address (advanced)
+    description: >-
+      Leave empty: the Minecraft add-on is found on Home Assistant's internal
+      network.
   matrix_url:
     name: Matrix server address (advanced)
     description: >-
