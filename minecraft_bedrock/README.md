@@ -9,13 +9,14 @@ Runs [itzg/minecraft-bedrock-server][itzg], the widely used Bedrock server
 image, with its settings on the Home Assistant Configuration tab.
 
 - Only allowed players can join (an allowlist), on by default
-- A **Minecraft** sidebar panel: who's online, every allowed player and their
-  role, game rules (keep inventory, PvP, mob griefing…), difficulty, and
-  quick actions (day, clear weather, message everyone), all live
+- A **Minecraft** dashboard in Home Assistant, kept up to date by the add-on:
+  who's online, playtime per player, players and roles, game rules,
+  difficulty, quick actions and **supper time** (a countdown, then the kids
+  are kicked for a minute)
 - Home Assistant entities over MQTT: players online, playtime per player,
   join/leave events, version, seed, and controls for automations
-- Works with the [Matrix Helper Bot][bot]: "@Helper add Steve as operator"
-  in an encrypted chat room
+- Works with the [Matrix Helper Bot][bot] over MQTT: "@Helper add Steve as
+  operator" in an encrypted chat room
 - Follows Mojang's Bedrock releases through this repository's daily updates,
   so players' apps and the server stay on the same version
 

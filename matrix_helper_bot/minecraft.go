@@ -1,20 +1,22 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"maunium.net/go/mautrix/id"
 )
 
-// The Minecraft Bedrock add-on's bot API (minecraft_bedrock/botapi):
-// players are added by gamertag; their Xbox ID is learned when they
-// first join, and operator status applies from then on.
+// Minecraft players through the Minecraft Bedrock add-on: added by gamertag;
+// their Xbox ID is learned when they first join, and roles apply from then on.
 
 type minecraftPlayer struct {
 	Name   string `json:"name"`
@@ -22,43 +24,131 @@ type minecraftPlayer struct {
 	Joined bool   `json:"joined"`
 }
 
-var minecraftClient = &http.Client{Timeout: 15 * time.Second}
+// The bot talks to the Minecraft add-on over MQTT: a request on
+// minecraft_bedrock/bot/request, the reply on minecraft_bedrock/bot/response/<id>.
+const (
+	mcRequestTopic  = "minecraft_bedrock/bot/request"
+	mcResponseTopic = "minecraft_bedrock/bot/response/"
+)
 
-func (b *Bot) minecraftCall(method, path string, body any) (map[string]json.RawMessage, error) {
-	var payload *bytes.Reader
-	if body != nil {
-		raw, _ := json.Marshal(body)
-		payload = bytes.NewReader(raw)
-	} else {
-		payload = bytes.NewReader(nil)
+var mcPending = struct {
+	sync.Mutex
+	waiting map[string]chan []byte
+}{waiting: map[string]chan []byte{}}
+
+// minecraftMQTT is the one broker connection, for the whole run of the bot
+var minecraftMQTT *mqttClient
+
+// startMinecraft connects to the MQTT broker (credentials from the
+// Supervisor), retrying until the broker is up
+func startMinecraft() {
+	address, username, password, err := mqttCredentials()
+	for wait := 10 * time.Second; err != nil; address, username, password, err = mqttCredentials() {
+		if wait == 10*time.Second {
+			warn("Minecraft commands are waiting for MQTT: %v", err)
+		}
+		time.Sleep(wait)
+		if wait < 5*time.Minute {
+			wait *= 2
+		}
 	}
-	request, err := http.NewRequestWithContext(b.ctx, method, strings.TrimRight(b.options.MinecraftURL, "/")+path, payload)
-	if err != nil {
-		return nil, err
+	connectMinecraft(address, username, password)
+}
+
+func connectMinecraft(address, username, password string) {
+	client := &mqttClient{address: address, username: username, password: password, clientID: "matrix_helper_bot",
+		subscriptions: []string{mcResponseTopic + "+"}}
+	client.onMessage = func(msg mqttMessage) {
+		id := strings.TrimPrefix(msg.topic, mcResponseTopic)
+		mcPending.Lock()
+		waiting := mcPending.waiting[id]
+		mcPending.Unlock()
+		if waiting != nil {
+			waiting <- msg.payload
+		}
 	}
-	request.Header.Set("Authorization", "Bearer "+b.options.MinecraftKey)
-	request.Header.Set("Content-Type", "application/json")
-	response, err := minecraftClient.Do(request)
+	mcPending.Lock()
+	minecraftMQTT = client
+	mcPending.Unlock()
+	go client.Run()
+}
+
+func mqttCredentials() (address, username, password string, err error) {
+	token := os.Getenv("SUPERVISOR_TOKEN")
+	if token == "" {
+		return "", "", "", fmt.Errorf("no Supervisor token")
+	}
+	supervisor := os.Getenv("SUPERVISOR_URL")
+	if supervisor == "" {
+		supervisor = "http://supervisor"
+	}
+	request, _ := http.NewRequest(http.MethodGet, supervisor+"/services/mqtt", nil)
+	request.Header.Set("Authorization", "Bearer "+token)
+	response, err := (&http.Client{Timeout: 15 * time.Second}).Do(request)
 	if err != nil {
-		warn("Could not reach the Minecraft add-on at %s: %v", b.options.MinecraftURL, err)
-		return nil, refuse("I can't reach the Minecraft server add-on right now. Is it running?")
+		return "", "", "", err
 	}
 	defer response.Body.Close()
-	var result map[string]json.RawMessage
-	_ = json.NewDecoder(response.Body).Decode(&result)
-	switch {
-	case response.StatusCode == http.StatusForbidden:
-		warn("The Minecraft add-on refused the bot: 'minecraft_key' must match its 'helper_bot_key'")
-		return nil, refuse("The Minecraft server didn't accept my key. Ask the server admin to check the bot's settings.")
-	case response.StatusCode >= 400:
-		var message string
-		_ = json.Unmarshal(result["error"], &message)
-		if message == "" {
-			message = fmt.Sprintf("The Minecraft server refused (HTTP %d).", response.StatusCode)
-		}
-		return nil, refuse("%s", message)
+	var body struct {
+		Data struct {
+			Host     string `json:"host"`
+			Port     int    `json:"port"`
+			Username string `json:"username"`
+			Password string `json:"password"`
+		} `json:"data"`
 	}
-	return result, nil
+	if response.StatusCode != http.StatusOK || json.NewDecoder(response.Body).Decode(&body) != nil || body.Data.Host == "" {
+		return "", "", "", fmt.Errorf("no MQTT broker (install the Mosquitto broker add-on)")
+	}
+	return net.JoinHostPort(body.Data.Host, strconv.Itoa(body.Data.Port)), body.Data.Username, body.Data.Password, nil
+}
+
+// minecraftCall asks the Minecraft add-on to list, set or remove a player
+func (b *Bot) minecraftCall(op, name, role string) (map[string]json.RawMessage, error) {
+	mcPending.Lock()
+	client := minecraftMQTT
+	mcPending.Unlock()
+	if client == nil {
+		return nil, refuse("I can't reach the Minecraft server add-on (no MQTT broker yet).")
+	}
+	id := randomHex(12)
+	waiting := make(chan []byte, 1)
+	mcPending.Lock()
+	mcPending.waiting[id] = waiting
+	mcPending.Unlock()
+	defer func() {
+		mcPending.Lock()
+		delete(mcPending.waiting, id)
+		mcPending.Unlock()
+	}()
+	request := map[string]any{"id": id, "op": op, "name": name}
+	if role != "" {
+		request["role"] = role
+	}
+	raw, _ := json.Marshal(request)
+	client.Publish(mcRequestTopic, raw, false)
+
+	select {
+	case payload := <-waiting:
+		var result map[string]json.RawMessage
+		_ = json.Unmarshal(payload, &result)
+		var status int
+		_ = json.Unmarshal(result["status"], &status)
+		if status >= 400 {
+			var message string
+			_ = json.Unmarshal(result["error"], &message)
+			if message == "" {
+				message = fmt.Sprintf("The Minecraft server refused (%d).", status)
+			}
+			return nil, refuse("%s", message)
+		}
+		return result, nil
+	case <-time.After(15 * time.Second):
+		warn("The Minecraft add-on didn't answer a %s request", op)
+		return nil, refuse("The Minecraft server add-on didn't answer. Is it running?")
+	case <-b.ctx.Done():
+		return nil, b.ctx.Err()
+	}
 }
 
 // roleWords are the ways people name Bedrock's roles
@@ -110,7 +200,7 @@ func (b *Bot) minecraft(sender id.UserID, room id.RoomID, words []string) error 
 
 	switch action {
 	case "list":
-		result, err := b.minecraftCall(http.MethodGet, "/api/bot/players", nil)
+		result, err := b.minecraftCall("list", "", "")
 		if err != nil {
 			return err
 		}
@@ -154,7 +244,7 @@ func (b *Bot) minecraft(sender id.UserID, room id.RoomID, words []string) error 
 		return b.setPlayer(sender, room, gamertag, "visitor")
 
 	case "remove", "delete", "kick":
-		result, err := b.minecraftCall(http.MethodPost, "/api/bot/players/remove", map[string]string{"name": gamertag})
+		result, err := b.minecraftCall("remove", gamertag, "")
 		if err != nil {
 			return err
 		}
@@ -168,11 +258,7 @@ func (b *Bot) minecraft(sender id.UserID, room id.RoomID, words []string) error 
 }
 
 func (b *Bot) setPlayer(sender id.UserID, room id.RoomID, gamertag, role string) error {
-	body := map[string]string{"name": gamertag}
-	if role != "" {
-		body["role"] = role
-	}
-	result, err := b.minecraftCall(http.MethodPost, "/api/bot/players", body)
+	result, err := b.minecraftCall("set", gamertag, role)
 	if err != nil {
 		return err
 	}

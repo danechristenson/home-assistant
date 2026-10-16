@@ -143,7 +143,7 @@ func TestCommandsFromHomeAssistant(t *testing.T) {
 }
 
 func TestDiscoveryTemplates(t *testing.T) {
-	list := entities([]string{"Cool Kid"})
+	list := entities([]string{"Cool Kid"}, []rosterEntry{{Slug: "best_friend", Name: "Best Friend", Role: "member"}})
 	seen := map[string]bool{}
 	for _, e := range list {
 		if seen[e.id] {
@@ -155,7 +155,8 @@ func TestDiscoveryTemplates(t *testing.T) {
 		}
 	}
 	for _, id := range []string{"server_running", "players_online", "bedrock_version", "seed", "activity", "allowlist", "difficulty", "kick_everyone", "message",
-		"rule_keepinventory", "rule_playerssleepingpercentage", "cool_kid_playing", "cool_kid_playtime_today", "cool_kid_playtime", "cool_kid_last_seen"} {
+		"rule_keepinventory", "rule_playerssleepingpercentage", "cool_kid_playing", "cool_kid_playtime_today", "cool_kid_playtime", "cool_kid_last_seen",
+		"supper_start", "supper_cancel", "supper", "add_player", "player_best_friend_role", "player_best_friend_remove"} {
 		if !seen[id] {
 			t.Errorf("missing entity %s", id)
 		}

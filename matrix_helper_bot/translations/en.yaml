@@ -21,16 +21,6 @@ configuration:
     description: >-
       How long a new password stays visible in the Server helpers room before
       the bot deletes the message.
-  minecraft_key:
-    name: Minecraft bot key
-    description: >-
-      Needed for the 'minecraft' permission: the same value as
-      'helper_bot_key' in the Minecraft Bedrock add-on.
-  minecraft_url:
-    name: Minecraft add-on address (advanced)
-    description: >-
-      Leave empty: the Minecraft add-on is found on Home Assistant's internal
-      network.
   matrix_url:
     name: Matrix server address (advanced)
     description: >-

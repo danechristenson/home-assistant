@@ -18,10 +18,34 @@ on, the server restarts onto the new version, so it matches players' apps.
    or **Servers → Add server** with your Home Assistant address and port
    19132.
 
-## The Minecraft panel
+## The Minecraft dashboard
 
-The add-on adds **Minecraft** to the Home Assistant sidebar (for
-administrators). It shows:
+With **Keep a Minecraft dashboard** on (the default), the add-on creates a
+**Minecraft** dashboard in Home Assistant and keeps it up to date:
+
+- **Reports** (everyone): server status, who's online, supper time, a
+  section for each tracked player (playing, playtime today and in total,
+  last seen), playtime per day, players online, and joins and leaves.
+- **Actions** (administrators only): supper time, quick actions, a message
+  to everyone, players (add one, change roles, remove), and the game
+  settings.
+
+It changes when you track another player or the allowlist changes. If you
+edit the dashboard yourself, the add-on notices and stops updating it;
+delete it to get the add-on's version back.
+
+## Supper time
+
+Press **Supper time** (on the dashboard, or the `button` entity in an
+automation) and everyone playing is told "Supper time in 5 minutes!", then
+4, 3, 2 and 1. Then the tracked players (everyone, if nobody is tracked) are
+kicked and kept out for a minute: if they rejoin, they're kicked again.
+**Cancel supper time** stops the countdown and tells everyone.
+
+## The web panel
+
+The add-on also has a web panel (Settings → Add-ons → Minecraft Bedrock →
+**Open web UI**, or turn on **Show in sidebar** there). It shows:
 
 - whether the server is running, its Bedrock version and world, and who's
   online;
@@ -64,14 +88,18 @@ Assistant, with:
 | Only allowed players, Difficulty, game rule switches, Players needed to sleep | Controls: change them live |
 | Make it day, Make it night, Clear the weather, Kick everyone | Buttons |
 | Message everyone | Text: what you set is sent to everyone playing |
+| Supper time, Cancel supper time | Buttons (see [Supper time](#supper-time)); a **Supper time** sensor shows the countdown |
+| Add player | Text: a gamertag to let join (as a member) |
+| *Name* role, Remove *Name* | For each allowed player: change their role, or remove them |
 
 For each gamertag in **Tracked players**: *playing*, *playtime today*
 (resets at midnight), *total playtime* and *last seen*. Playtime is counted
 by the minute while they're online, and works with Home Assistant's
 statistics and utility meters (e.g. weekly totals).
 
-Example automation: at 20:50 set **Message everyone** to "Bedtime in 10
-minutes", at 21:00 press **Kick everyone**.
+Example automations: press **Supper time** at 17:55; at 20:50 set
+**Message everyone** to "Bedtime in 10 minutes", at 21:00 press **Kick
+everyone**.
 
 Note: Home Assistant can't limit which users may use an entity. Non-admin
 users could change the controls if they find them, so keep them off their
@@ -80,21 +108,16 @@ dashboards.
 ## Who can join
 
 **Only allowed players** is on by default: only players on the allowlist can
-join. Add them in the panel, or from chat with the
+join. Add them on the dashboard (or the web panel), or from chat with the
 [Matrix Helper Bot](https://github.com/danechristenson/home-assistant/tree/main/matrix_helper_bot):
+give people the `minecraft` permission there, and in a room with the bot
+say "@Helper add Gamertag", "@Helper add Gamertag as operator", "@Helper
+make Gamertag a visitor", "@Helper remove Gamertag" or "@Helper list". The
+bot reaches this add-on over MQTT, so there's nothing else to set up.
 
-1. Make up a random key of at least 16 characters (a password manager can
-   generate one).
-2. Set it as **Matrix Helper Bot key** here and as `minecraft_key` in the
-   Matrix Helper Bot, restart both, and give people the `minecraft`
-   permission there.
-3. In a room with the bot: "@Helper add Gamertag", "@Helper add Gamertag as
-   operator", "@Helper make Gamertag a visitor", "@Helper remove Gamertag",
-   "@Helper list".
-
-The bot only changes players added from chat. Players added in the panel or
-before (such as your own account) can only be changed in the panel, so a
-helper can't demote or remove them.
+The bot only changes players added from chat. Players added in Home
+Assistant or before (such as your own account) can only be changed there,
+so a helper can't demote or remove them.
 
 Changes apply at once, without a restart. A gamertag is all you need: the
 server records the player's Xbox ID the first time they join. Bedrock stores
@@ -123,7 +146,8 @@ as **New players are** (visitor, member or operator).
 | Show on the home network | Lets devices at home find the server in the Friends tab. |
 | Port (IPv4 / IPv6) | 19132 / 19133 by default. |
 | Connection type | NetherNet, which current Bedrock versions require. |
-| Matrix Helper Bot key | Shared with the Matrix Helper Bot; empty turns bot access off. |
+| Tracked players | Players to track in Home Assistant (playtime and more), by gamertag or allowlist name. |
+| Keep a Minecraft dashboard | Create and update the **Minecraft** dashboard. |
 
 ## Moving from another Minecraft add-on
 
@@ -152,9 +176,8 @@ often get through your router without a port forward. If players outside
 your home can't connect, forward UDP 19132 to Home Assistant, after reading
 [Before you forward ports](https://github.com/danechristenson/home-assistant#before-you-forward-ports).
 
-The Matrix Helper Bot reaches the add-on on port 8790, which only answers
-Home Assistant's internal network, with the key. The panel (port 8791) only
-answers Home Assistant's sidebar.
+Home Assistant entities and the Matrix Helper Bot use your MQTT broker. The
+web panel (port 8791) only answers Home Assistant's ingress.
 
 ## Backups
 

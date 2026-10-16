@@ -47,7 +47,8 @@ password there (**Password for phone apps**); this is for everyone else.
        minecraft: true
    ```
 
-   For Minecraft, also set `minecraft_key` (see [Minecraft](#minecraft)).
+   For Minecraft, also install the Mosquitto broker add-on (see
+   [Minecraft](#minecraft)).
 
 4. **Start it.** The log shows `Ready: 2 helper(s)`. Helpers get invites to
    the rooms for their permissions; once they join, they can type `!help`
@@ -106,10 +107,10 @@ Each helper can reset at most 5 passwords an hour.
 
 ## Minecraft
 
-Needs the **Minecraft Bedrock** add-on from this repository. Make up a
-random key of at least 16 characters (a password manager can generate one),
-set it as `helper_bot_key` in Minecraft Bedrock and as `minecraft_key` here,
-and restart both.
+Needs the **Minecraft Bedrock** add-on from this repository and the
+**Mosquitto broker** add-on: the bot sends its requests to Minecraft over
+MQTT, with credentials it gets from Home Assistant, so there's nothing to set
+up beyond giving people the `minecraft` permission.
 
 In any room with the bot, use the player's Xbox gamertag:
 
@@ -152,12 +153,6 @@ the name works too). Permissions, each with its own room:
 The bot invites people to the rooms for their permissions and removes
 anyone else. After changing the list, restart the add-on.
 
-### Option: `minecraft_key` / `minecraft_url`
-
-The same key as `helper_bot_key` in the Minecraft Bedrock add-on. Leave
-`minecraft_url` empty: the bot finds Minecraft Bedrock on Home Assistant's
-internal network.
-
 ### Option: `password_message_minutes`
 
 How long a new password stays in the Password helpers room. Default 10.
@@ -188,12 +183,12 @@ Assistant's internal network. Only set it if the log says it can't connect.
   the account yourself. The bot only ever sends `users reset-password`, for
   a single checked username. Its encryption keys are kept in the add-on's
   data folder (included in Home Assistant backups).
-- **The Minecraft key** only lets the bot add, promote and remove players
-  added from chat; the Minecraft add-on only accepts it from Home
-  Assistant's internal network.
-- Nothing is reachable from outside: the bot only talks to the Matrix and
-  Minecraft add-ons over Home Assistant's internal network, and opens no
-  ports.
+- **Minecraft requests** go over your MQTT broker, which only Home
+  Assistant and add-ons can use. The Minecraft add-on only lets them add,
+  re-role and remove players added from chat.
+- Nothing is reachable from outside: the bot only talks to the Matrix
+  add-on and the MQTT broker over Home Assistant's internal network, and
+  opens no ports.
 
 ## Support
 

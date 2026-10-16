@@ -269,6 +269,7 @@ func setPlayer(name, role, source string) (Player, bool, error) {
 		return Player{}, false, err
 	}
 	log.Printf("[INFO] %s: %s is allowed (%s)", sourceName(source), players[i].Name, players[i].Role)
+	requestPublish()
 	return players[i], old == nil, nil
 }
 
@@ -312,12 +313,13 @@ func removePlayer(name, source string) (Player, error) {
 		console(`kick "` + removed.Name + `" Removed from the allowlist`)
 	}
 	log.Printf("[INFO] %s: %s was removed", sourceName(source), removed.Name)
+	requestPublish()
 	return removed, nil
 }
 
 func sourceName(source string) string {
 	if source == fromPanel {
-		return "Panel"
+		return "Home Assistant"
 	}
 	return "Chat"
 }
@@ -392,6 +394,7 @@ func readLine(line string) {
 		live.xuid[strings.ToLower(name)] = match[2]
 		live.Unlock()
 		recordConnection(name, match[2])
+		supperJoin(name, match[2])
 	} else if match := disconnected.FindStringSubmatch(line); match != nil {
 		live.Lock()
 		delete(live.online, strings.ToLower(strings.TrimSpace(match[1])))

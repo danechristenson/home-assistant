@@ -43,11 +43,7 @@ func panelState() map[string]any {
 	if raw, err := os.ReadFile(path("options.json")); err == nil {
 		_ = json.Unmarshal(raw, &options)
 	}
-	if key, _ := options["helper_bot_key"].(string); key != "" {
-		options["helper_bot_key"] = "(set)"
-	} else {
-		options["helper_bot_key"] = "(not set)"
-	}
+	delete(options, "helper_bot_key") // older versions' option
 	defaultRole, _ := options["default_player_permission_level"].(string)
 
 	mu.Lock()

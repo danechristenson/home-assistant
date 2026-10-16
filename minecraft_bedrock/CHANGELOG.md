@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026.10.1.7
+
+- **Supper time**: a 5-minute countdown in the game, then the tracked
+  players (everyone, if none are tracked) are kicked and kept out for a
+  minute. Buttons to start and cancel, and a countdown sensor.
+- Players in Home Assistant: an **Add player** text, and a role select and
+  **Remove** button for each allowed player (added and removed as the
+  allowlist changes).
+- The add-on keeps a **Minecraft** dashboard (Reports for everyone, Actions
+  for administrators), built from the tracked players and the allowlist.
+  It stops updating it if you edit it. Option: **Keep a Minecraft
+  dashboard**.
+- The Matrix Helper Bot now reaches the add-on over MQTT: the
+  `helper_bot_key` option and port 8790 are gone.
+
 ## 2026.10.1.6
 
 - Tracked players can be allowlist names: a player listed as "Robin" is

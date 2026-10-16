@@ -307,9 +307,42 @@ func statePayload() []byte {
 		"started_at":     nullable(stats.startedAt),
 		"rules":          stats.rules,
 		"players":        players,
+		"roster":         rosterState(),
+		"supper":         supperState(),
 	}
 	raw, _ := json.Marshal(state)
 	return raw
+}
+
+// roster is everyone on the allowlist, as the panel lists them
+type rosterEntry struct {
+	Slug, Name, Role string
+	Online           bool
+}
+
+func roster() []rosterEntry {
+	list := []rosterEntry{}
+	for _, row := range panelState()["players"].([]panelRow) {
+		list = append(list, rosterEntry{Slug: slug(row.Name), Name: row.Name, Role: row.Role, Online: row.Online})
+	}
+	return list
+}
+
+func rosterState() map[string]any {
+	out := map[string]any{}
+	for _, entry := range roster() {
+		out[entry.Slug] = map[string]any{"name": entry.Name, "role": entry.Role, "online": entry.Online}
+	}
+	return out
+}
+
+func rosterSignature() string {
+	names := []string{}
+	for _, entry := range roster() {
+		names = append(names, entry.Slug+"="+entry.Name)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ",")
 }
 
 func nullable(s string) any {
@@ -338,7 +371,7 @@ type entity struct {
 	controls  bool // only available while the server runs
 }
 
-func entities(tracked []string) []entity {
+func entities(tracked []string, roster []rosterEntry) []entity {
 	list := []entity{
 		{"binary_sensor", "server_running", map[string]any{"name": "Server", "device_class": "running", "value_template": "{{ 'ON' if value_json.running else 'OFF' }}"}, false},
 		{"sensor", "players_online", map[string]any{"name": "Players online", "icon": "mdi:account-group", "unit_of_measurement": "players", "state_class": "measurement",
@@ -362,6 +395,23 @@ func entities(tracked []string) []entity {
 		{"button", "clear_weather", map[string]any{"name": "Clear the weather", "icon": "mdi:weather-cloudy-clock", "command_topic": topicCommand + "clear"}, true},
 		{"button", "kick_everyone", map[string]any{"name": "Kick everyone", "icon": "mdi:account-cancel", "command_topic": topicCommand + "kick_all"}, true},
 		{"text", "message", map[string]any{"name": "Message everyone", "icon": "mdi:message-text", "max": 200, "mode": "text", "command_topic": topicCommand + "say"}, true},
+		{"button", "supper_start", map[string]any{"name": "Supper time", "icon": "mdi:silverware-fork-knife", "command_topic": topicCommand + "supper/start"}, true},
+		{"button", "supper_cancel", map[string]any{"name": "Cancel supper time", "icon": "mdi:cancel", "command_topic": topicCommand + "supper/cancel"}, false},
+		{"sensor", "supper", map[string]any{"name": "Supper time", "icon": "mdi:silverware-fork-knife",
+			"value_template":           "{% set s = value_json.supper %}{{ 'Off' if s.state == 'off' else ((s.minutes_left ~ ' min to go') if s.state == 'countdown' else 'Players kept out') }}",
+			"json_attributes_topic":    topicState,
+			"json_attributes_template": "{{ value_json.supper | tojson }}"}, false},
+		{"text", "add_player", map[string]any{"name": "Add player", "icon": "mdi:account-plus", "min": 1, "max": 24, "mode": "text",
+			"pattern": "^[A-Za-z0-9](?:[A-Za-z0-9]| [A-Za-z0-9]){0,15}(?:#[0-9]{1,5})?$", "command_topic": topicCommand + "add_player"}, false},
+	}
+	for _, player := range roster {
+		key := fmt.Sprintf("value_json.roster['%s']", player.Slug)
+		list = append(list,
+			entity{"select", "player_" + player.Slug + "_role", map[string]any{"name": player.Name + " role", "icon": "mdi:account-key", "options": roles,
+				"value_template": fmt.Sprintf("{{ %s.role if %s is defined else None }}", key, key), "command_topic": topicCommand + "player/" + player.Slug + "/role"}, false},
+			entity{"button", "player_" + player.Slug + "_remove", map[string]any{"name": "Remove " + player.Name, "icon": "mdi:account-remove",
+				"command_topic": topicCommand + "player/" + player.Slug + "/remove"}, false},
+		)
 	}
 	for _, rule := range gameRules {
 		id := "rule_" + slug(rule.Name)
@@ -397,7 +447,7 @@ var legacyDiscovery = []string{
 	"homeassistant/sensor/minecraft_bedrock/version/config",
 }
 
-func publishDiscovery(client *mqttClient, tracked []string) {
+func publishDiscovery(client *mqttClient, tracked []string, roster []rosterEntry) {
 	published := []string{}
 	defer func() {
 		// Remove entities no longer published (renamed, or players no longer
@@ -411,7 +461,7 @@ func publishDiscovery(client *mqttClient, tracked []string) {
 		}
 		_ = writeJSON("discovery.json", published)
 	}()
-	for _, e := range entities(tracked) {
+	for _, e := range entities(tracked, roster) {
 		config := map[string]any{
 			"unique_id":         topicBase + "_" + e.id,
 			"default_entity_id": e.component + "." + topicBase + "_" + e.id,
@@ -471,6 +521,34 @@ func handleCommand(msg mqttMessage) {
 		err = action(command, "")
 	case command == "say":
 		err = action("say", payload)
+	case command == "supper/start":
+		err = startSupper()
+	case command == "supper/cancel":
+		cancelSupper()
+	case command == "add_player":
+		if gamertag.MatchString(payload) {
+			_, _, err = setPlayer(payload, "", fromPanel)
+		} else {
+			err = apiError{400, "not a gamertag"}
+		}
+	case strings.HasPrefix(command, "player/"):
+		parts := strings.Split(command, "/") // player/<slug>/role|remove
+		name := ""
+		for _, entry := range roster() {
+			if len(parts) == 3 && entry.Slug == parts[1] {
+				name = entry.Name
+			}
+		}
+		switch {
+		case name == "":
+			err = errNotFound
+		case parts[2] == "role" && validRole(strings.ToLower(payload)):
+			_, _, err = setPlayer(name, strings.ToLower(payload), fromPanel)
+		case parts[2] == "remove":
+			_, err = removePlayer(name, fromPanel)
+		default:
+			err = apiError{400, "bad player command"}
+		}
 	case command == "kick_all":
 		live.Lock()
 		names := make([]string, 0, len(live.online))
@@ -557,12 +635,30 @@ func startHomeAssistant(tracked []string) {
 	client := &mqttClient{
 		address: address, username: username, password: password, clientID: "minecraft_bedrock",
 		willTopic: topicAvailability, willPayload: "offline",
-		subscriptions: []string{topicCommand + "#"},
-		onMessage:     func(msg mqttMessage) { go handleCommand(msg) },
+		subscriptions: []string{topicCommand + "#", topicBase + "/bot/request"},
+	}
+	client.onMessage = func(msg mqttMessage) {
+		if msg.topic == topicBase+"/bot/request" {
+			go handleBotMessage(client, msg.payload)
+			return
+		}
+		go handleCommand(msg)
+	}
+	var discovered sync.Mutex
+	lastRoster := ""
+	discover := func(force bool) {
+		discovered.Lock()
+		defer discovered.Unlock()
+		signature := rosterSignature()
+		if force || signature != lastRoster {
+			lastRoster = signature
+			publishDiscovery(client, tracked, roster())
+		}
 	}
 	client.onConnect = func() {
+		log.Printf("[INFO] Home Assistant entities are published")
 		client.Publish(topicAvailability, []byte("online"), true)
-		publishDiscovery(client, tracked)
+		discover(true)
 		requestPublish()
 	}
 	stats.Lock()
@@ -592,7 +688,9 @@ func startHomeAssistant(tracked []string) {
 			controls = "online"
 		}
 		client.Publish(topicControls, []byte(controls), true)
+		discover(false) // players added or removed: their entities too
 		client.Publish(topicState, statePayload(), true)
+		go updateDashboard(tracked)
 	}
 }
 

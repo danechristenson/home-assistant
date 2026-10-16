@@ -12,9 +12,28 @@ import (
 	"time"
 )
 
-const testKey = "0123456789abcdef0123"
-
 // setup points the API at a temporary /data and records console commands
+// TestMain installs one fake console for all tests (background kicks from one
+// test may still be running when the next starts, so it never changes): it
+// records each command, and answers "gamerule" in the server log like the
+// real console does
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "fake-console")
+	if err != nil {
+		panic(err)
+	}
+	script := filepath.Join(dir, "send-command")
+	fake := "#!/bin/sh\necho \"$*\" >> \"$MC_TEST_COMMANDS\"\n" +
+		"[ \"$*\" = gamerule ] && echo \"[INFO] commandBlockOutput = true, keepInventory = false, pvp = true, doFireTick = true, playersSleepingPercentage = 100, randomTickSpeed = 1\" >> \"$MC_TEST_LOG\"\nexit 0\n"
+	if err := os.WriteFile(script, []byte(fake), 0o755); err != nil {
+		panic(err)
+	}
+	sendCommand = script
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
+}
+
 func setup(t *testing.T) (http.Handler, func() []string) {
 	t.Helper()
 	dataDir = t.TempDir()
@@ -27,18 +46,11 @@ func setup(t *testing.T) (http.Handler, func() []string) {
 	stats.tracked, stats.mqtt = nil, nil
 	stats.Unlock()
 	commands := filepath.Join(dataDir, "commands")
-	script := filepath.Join(dataDir, "send-command")
 	os.MkdirAll(filepath.Join(dataDir, "run"), 0o755)
-	// Like the real console: the command is recorded, and "gamerule" answers
-	// in the server log with the current rules
-	fake := "#!/bin/sh\necho \"$*\" >> " + commands + "\n" +
-		"[ \"$*\" = gamerule ] && echo \"[INFO] commandBlockOutput = true, keepInventory = false, pvp = true, doFireTick = true, playersSleepingPercentage = 100, randomTickSpeed = 1\" >> " +
-		filepath.Join(dataDir, "run", "bedrock.log") + "\nexit 0\n"
-	if err := os.WriteFile(script, []byte(fake), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	sendCommand = script
-	return botHandler(testKey), func() []string {
+	// The fake console (see TestMain) writes where these say
+	os.Setenv("MC_TEST_COMMANDS", commands)
+	os.Setenv("MC_TEST_LOG", filepath.Join(dataDir, "run", "bedrock.log"))
+	return nil, func() []string {
 		raw, _ := os.ReadFile(commands)
 		return strings.Split(strings.TrimSpace(string(raw)), "\n")
 	}
@@ -57,8 +69,29 @@ func call(h http.Handler, method, target, body, from, key string) (int, map[stri
 	return recorder.Code, result
 }
 
-func bot(h http.Handler, method, target, body string) (int, map[string]any) {
-	return call(h, method, target, body, "172.30.33.5", testKey)
+// bot sends the Matrix Helper Bot's request the way it arrives over MQTT
+// (the old HTTP paths name the operation, to keep the tests readable)
+func bot(_ http.Handler, method, target, body string) (int, map[string]any) {
+	req := botRequest{ID: "test-request"}
+	if body != "" {
+		if err := json.Unmarshal([]byte(body), &req); err != nil {
+			return http.StatusBadRequest, nil
+		}
+	}
+	switch {
+	case method == "GET":
+		req.Op = "list"
+	case strings.HasSuffix(target, "/remove"):
+		req.Op = "remove"
+	default:
+		req.Op = "set"
+	}
+	status, result := answerBot(req)
+	// Round-trip through JSON, like the bot receives it
+	raw, _ := json.Marshal(result)
+	var decoded map[string]any
+	_ = json.Unmarshal(raw, &decoded)
+	return status, decoded
 }
 
 func file(t *testing.T, name string) any {
@@ -78,26 +111,6 @@ func asJSON(s string) any {
 	var value any
 	_ = json.Unmarshal([]byte(s), &value)
 	return value
-}
-
-func TestAccess(t *testing.T) {
-	h, _ := setup(t)
-	cases := []struct {
-		from, key string
-		want      int
-	}{
-		{"172.30.33.5", testKey, 200},
-		{"127.0.0.1", testKey, 200},
-		{"172.30.33.5", "wrong-key-wrong-key", 403},
-		{"172.30.33.5", "", 403},
-		{"192.168.1.50", testKey, 403},
-		{"10.1.0.2", testKey, 403},
-	}
-	for _, c := range cases {
-		if got, _ := call(h, "GET", "/api/bot/players", "", c.from, c.key); got != c.want {
-			t.Errorf("from %s with key %q: got %d, want %d", c.from, c.key, got, c.want)
-		}
-	}
 }
 
 func TestOperatorAppliesOnFirstJoin(t *testing.T) {
@@ -239,8 +252,8 @@ func TestPanel(t *testing.T) {
 	call(panel, "POST", "/api/players", `{"name":"New Kid","role":"operator"}`, "172.30.32.2", "")
 
 	_, state := call(panel, "GET", "/api/state", "", "172.30.32.2", "")
-	if state["settings"].(map[string]any)["helper_bot_key"] != "(set)" {
-		t.Errorf("panel shows the bot key: %v", state["settings"])
+	if _, shown := state["settings"].(map[string]any)["helper_bot_key"]; shown {
+		t.Errorf("panel shows an old version's bot key: %v", state["settings"])
 	}
 	rows := map[string]map[string]any{}
 	for _, row := range state["players"].([]any) {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.0
+
+- Minecraft requests go to the Minecraft Bedrock add-on over MQTT, with
+  credentials from Home Assistant: no more `minecraft_key` or
+  `minecraft_url` to set (needs the Mosquitto broker add-on).
+
 ## 1.3.0
 
 - Minecraft roles in plain words: "add Steve as operator", "make Steve a

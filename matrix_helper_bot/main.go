@@ -15,8 +15,8 @@
 // a few minutes. It refuses to touch server admins, helpers, deactivated
 // accounts and the bot itself.
 //
-// Minecraft: the bot calls the Minecraft add-on's bot API (with its key) to
-// allow, promote and remove players by gamertag.
+// Minecraft: the bot asks the Minecraft Bedrock add-on, over MQTT, to allow,
+// promote and remove players by gamertag.
 package main
 
 import (
@@ -80,8 +80,6 @@ type Options struct {
 	Password       string `json:"password"`
 	MessageMinutes int    `json:"password_message_minutes"`
 	MatrixURL      string `json:"matrix_url"`
-	MinecraftURL   string `json:"minecraft_url"`
-	MinecraftKey   string `json:"minecraft_key"`
 	Helpers        []struct {
 		User           string `json:"user"`
 		ResetPasswords bool   `json:"reset_passwords"`
@@ -159,8 +157,7 @@ func main() {
 	// Empty means "find it automatically"; Home Assistant's url type rejects
 	// empty values, so these are plain strings in the schema and checked here
 	options.MatrixURL = strings.TrimSpace(options.MatrixURL)
-	options.MinecraftURL = strings.TrimSpace(options.MinecraftURL)
-	for name, value := range map[string]string{"matrix_url": options.MatrixURL, "minecraft_url": options.MinecraftURL} {
+	for name, value := range map[string]string{"matrix_url": options.MatrixURL} {
 		if parsed, err := url.Parse(value); value != "" && (err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "") {
 			log.Fatalf("[ERROR] '%s' must be empty or an address like http://192.168.1.10:8008 (got '%s')", name, value)
 		}
@@ -168,10 +165,13 @@ func main() {
 	if options.MatrixURL == "" {
 		options.MatrixURL = defaultMatrixURL()
 	}
-	if options.MinecraftURL == "" {
-		// The Minecraft add-on uses the host network, which Home Assistant's
-		// internal network reaches at its gateway
-		options.MinecraftURL = "http://172.30.32.1:8790"
+
+	// Minecraft commands go to the Minecraft Bedrock add-on over MQTT
+	for _, helper := range options.Helpers {
+		if helper.Minecraft {
+			go startMinecraft()
+			break
+		}
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -375,9 +375,6 @@ func (b *Bot) loadHelpers() {
 			continue
 		}
 		b.helpers[id.UserID(user)] = Permissions{ResetPasswords: entry.ResetPasswords, Minecraft: entry.Minecraft}
-		if entry.Minecraft && b.options.MinecraftKey == "" {
-			warn("%s has the minecraft permission, but 'minecraft_key' isn't set; use the same value as 'helper_bot_key' in the Minecraft Bedrock add-on", user)
-		}
 	}
 	if len(b.helpers) == 0 {
 		warn("No helpers are listed on the Configuration tab, so nobody can use the bot yet.")
@@ -417,9 +414,6 @@ func intPtr(value int) *int { return &value }
 
 // enabled is whether a permission's room is in use
 func (b *Bot) enabled(kind roomKind) bool {
-	if kind.key == "minecraft" && b.options.MinecraftKey == "" {
-		return false
-	}
 	for _, permissions := range b.helpers {
 		if kind.allowed(permissions) {
 			return true

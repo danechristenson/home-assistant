@@ -52,12 +52,6 @@ configuration:
     description: >-
       NetherNet is required by current Bedrock versions. RakNet only for old
       ones.
-  helper_bot_key:
-    name: Matrix Helper Bot key
-    description: >-
-      Lets the Matrix Helper Bot add, promote and remove players. Any random
-      text of 16 characters or more; set the same value as 'minecraft_key' in
-      the Matrix Helper Bot. Empty turns this off.
   tracked_players:
     name: Tracked players
     description: >-
@@ -65,6 +59,12 @@ configuration:
       on the allowlist (matched by Xbox ID). Each gets "playing",
       "playtime today", "total playtime" and "last seen" entities. Needs the
       Mosquitto broker add-on.
+  dashboard:
+    name: Keep a Minecraft dashboard
+    description: >-
+      Creates and updates a "Minecraft" dashboard in Home Assistant: reports
+      (players, playtime of tracked players) and actions for administrators.
+      If you edit it yourself, the add-on stops updating it.
 network:
   19132/udp: Minecraft (IPv4)
   19133/udp: Minecraft (IPv6)

@@ -72,14 +72,8 @@ fi
 mkdir -p /data/run
 : > /data/run/bedrock.log
 
-# The sidebar panel, and (with a key) the Matrix Helper Bot's access
-BOT_KEY=$(opt helper_bot_key)
-if [[ -n "$BOT_KEY" ]] && (( ${#BOT_KEY} < 16 )); then
-    echo "[ERROR] 'helper_bot_key' must be at least 16 characters; the Matrix Helper Bot can't manage players until it is." >&2
-    BOT_KEY=
-fi
-BOT_KEY="$BOT_KEY" minecraft-bot-api &
-unset BOT_KEY
+# The web panel, Home Assistant entities and the Matrix Helper Bot's access
+minecraft-bot-api &
 
 echo "[INFO] Starting Bedrock ${VERSION} (world '$(opt level_name)')"
 exec /opt/demoter-entry.sh > >(tee -a /data/run/bedrock.log) 2>&1

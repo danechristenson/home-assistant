@@ -139,7 +139,7 @@
 <script>
   const $ = (id) => document.getElementById(id);
   const roleNames = { visitor: "Visitor", member: "Member", operator: "Operator" };
-  const sourceNames = { chat: "From chat", panel: "In this panel", "": "Before" };
+  const sourceNames = { chat: "From chat", panel: "Home Assistant", "": "Before" };
   const valueNames = {
     survival: "Survival", creative: "Creative", adventure: "Adventure",
     peaceful: "Peaceful", easy: "Easy", normal: "Normal", hard: "Hard",
@@ -152,7 +152,7 @@
     ["max_players", "Most players at once"], ["view_distance", "View distance"], ["tick_distance", "Simulation distance"],
     ["player_idle_timeout", "Kick idle players after (minutes)"], ["lan_visibility", "Show on the home network"],
     ["server_port", "Port (IPv4)"], ["server_port_v6", "Port (IPv6)"], ["transport", "Connection type"],
-    ["helper_bot_key", "Matrix Helper Bot key"],
+    ["tracked_players", "Tracked players"], ["dashboard", "Keep a Minecraft dashboard"],
   ];
 
   function el(tag, text, className) {
@@ -174,6 +174,7 @@
   function value(v) {
     if (v === true) return "Yes";
     if (v === false) return "No";
+    if (Array.isArray(v)) return v.length ? v.join(", ") : "—";
     if (v === "" || v === null || v === undefined) return "—";
     return valueNames[v] ?? String(v);
   }

@@ -1,28 +1,17 @@
 package main
 
-// The Matrix Helper Bot's API: add, re-role and remove players added from
-// chat. Only Home Assistant's internal network may connect, with the key from
-// the add-on's options.
+// The Matrix Helper Bot's requests (over MQTT): add, re-role and remove
+// players added from chat. Also the JSON helpers the panel uses.
 
 import (
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"io"
 	"net"
 	"net/http"
+	"regexp"
 	"strings"
 )
-
-var internal = mustCIDR("172.30.32.0/23")
-
-func mustCIDR(cidr string) *net.IPNet {
-	_, network, err := net.ParseCIDR(cidr)
-	if err != nil {
-		panic(err)
-	}
-	return network
-}
 
 func clientIP(r *http.Request) net.IP {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -85,18 +74,23 @@ func readPlayerRequest(w http.ResponseWriter, r *http.Request) (string, string, 
 	return name, role, true
 }
 
-func botAuthorized(r *http.Request, key string) bool {
-	ip := clientIP(r)
-	if ip == nil || !(ip.IsLoopback() || internal.Contains(ip)) {
-		return false
-	}
-	supplied := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-	return subtle.ConstantTimeCompare([]byte(supplied), []byte(key)) == 1
+// botRequest is one request from the Matrix Helper Bot, over MQTT:
+// {"id": "...", "op": "list|set|remove", "name": "...", "role": "..."}.
+// The reply goes to minecraft_bedrock/bot/response/<id> as
+// {"status": <HTTP-style code>, ...}. Only players added from chat can be
+// changed this way.
+type botRequest struct {
+	ID   string  `json:"id"`
+	Op   string  `json:"op"`
+	Name string  `json:"name"`
+	Role *string `json:"role"`
 }
 
-func botHandler(key string) http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/bot/players", func(w http.ResponseWriter, r *http.Request) {
+var requestID = regexp.MustCompile(`^[A-Za-z0-9_-]{8,64}$`)
+
+func answerBot(req botRequest) (int, map[string]any) {
+	switch req.Op {
+	case "list":
 		mu.Lock()
 		players := loadPlayers()
 		mu.Unlock()
@@ -106,43 +100,53 @@ func botHandler(key string) http.Handler {
 				list = append(list, public(player))
 			}
 		}
-		reply(w, http.StatusOK, map[string]any{"players": list})
-	})
-	mux.HandleFunc("POST /api/bot/players", func(w http.ResponseWriter, r *http.Request) {
-		name, role, ok := readPlayerRequest(w, r)
-		if !ok {
-			return
+		return http.StatusOK, map[string]any{"players": list}
+	case "set":
+		name := strings.TrimSpace(req.Name)
+		if !gamertag.MatchString(name) {
+			return http.StatusBadRequest, map[string]any{"error": "That doesn't look like an Xbox gamertag."}
+		}
+		role := ""
+		if req.Role != nil {
+			role = strings.ToLower(strings.TrimSpace(*req.Role))
+			if !validRole(role) {
+				return http.StatusBadRequest, map[string]any{"error": "Role must be visitor, member or operator."}
+			}
 		}
 		player, created, err := setPlayer(name, role, fromChat)
 		if err != nil {
-			fail(w, err)
-			return
+			return errorReply(err)
 		}
-		reply(w, http.StatusOK, map[string]any{"player": public(player), "created": created})
-	})
-	mux.HandleFunc("POST /api/bot/players/remove", func(w http.ResponseWriter, r *http.Request) {
-		var body playerRequest
-		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&body); err != nil {
-			refuse(w, http.StatusBadRequest, "Bad request.")
-			return
-		}
-		removed, err := removePlayer(strings.TrimSpace(body.Name), fromChat)
+		return http.StatusOK, map[string]any{"player": public(player), "created": created}
+	case "remove":
+		removed, err := removePlayer(strings.TrimSpace(req.Name), fromChat)
 		if errors.Is(err, errNotFound) {
-			refuse(w, http.StatusNotFound, "That player wasn't added from chat.")
-			return
+			return http.StatusNotFound, map[string]any{"error": "That player wasn't added from chat."}
 		}
 		if err != nil {
-			fail(w, err)
-			return
+			return errorReply(err)
 		}
-		reply(w, http.StatusOK, map[string]any{"removed": public(removed)})
-	})
+		return http.StatusOK, map[string]any{"removed": public(removed)}
+	}
+	return http.StatusBadRequest, map[string]any{"error": "Unknown request."}
+}
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !botAuthorized(r, key) {
-			refuse(w, http.StatusForbidden, "Forbidden.")
-			return
-		}
-		mux.ServeHTTP(w, r)
-	})
+func errorReply(err error) (int, map[string]any) {
+	var known apiError
+	if errors.As(err, &known) {
+		return known.status, map[string]any{"error": known.message}
+	}
+	return http.StatusInternalServerError, map[string]any{"error": "Could not update the allowlist."}
+}
+
+// handleBotMessage answers a request published on minecraft_bedrock/bot/request
+func handleBotMessage(client *mqttClient, payload []byte) {
+	var req botRequest
+	if json.Unmarshal(payload, &req) != nil || !requestID.MatchString(req.ID) {
+		return
+	}
+	status, body := answerBot(req)
+	body["status"] = status
+	raw, _ := json.Marshal(body)
+	client.Publish(topicBase+"/bot/response/"+req.ID, raw, false)
 }

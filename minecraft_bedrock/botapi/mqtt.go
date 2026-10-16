@@ -172,7 +172,7 @@ func (c *mqttClient) Run() {
 			continue
 		}
 		delay = 5 * time.Second
-		log.Printf("[INFO] Connected to MQTT; Home Assistant entities are published")
+		log.Printf("[INFO] Connected to MQTT")
 		if c.onConnect != nil {
 			c.onConnect()
 		}
