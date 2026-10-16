@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Bump the Matrix add-ons to the latest upstream releases.
 
-Checks Continuwuity, Element Web, qrcode-generator, coturn, LiveKit and
-lk-jwt-service. For each add-on
+Checks Continuwuity, Element Web, qrcode-generator, coturn, LiveKit,
+lk-jwt-service, and mautrix-go and Go for the helper bot. For each add-on
 whose dependencies changed, updates build.yaml, the add-on version and the
 changelog, then prints the changed add-on folders (one per line) for the
 workflow to build and test.
@@ -19,6 +19,7 @@ pre-releases and sort as older.
 
 import json
 import re
+import subprocess
 import sys
 import urllib.request
 from datetime import date
@@ -200,6 +201,63 @@ def update_group_calls():
     return True
 
 
+def latest_mautrix():
+    return get_json("https://proxy.golang.org/maunium.net/go/mautrix/@latest")["Version"]
+
+
+def latest_go():
+    """The newest Go minor version with a published golang:<x.y>-alpine image."""
+    releases = get_json("https://go.dev/dl/?mode=json")
+    minors = sorted({".".join(r["version"].removeprefix("go").split(".")[:2]) for r in releases if r["stable"]}, key=version_key)
+    for minor in reversed(minors):
+        try:
+            get_json(f"https://hub.docker.com/v2/repositories/library/golang/tags/{minor}-alpine")
+            return minor
+        except urllib.error.HTTPError:
+            continue
+    return None
+
+
+def update_helper_bot():
+    folder = ROOT / "matrix_helper_bot"
+    build = folder / "build.yaml"
+    text = build.read_text()
+    current = {
+        "mautrix": read_value((folder / "go.mod").read_text(), r"maunium\.net/go/mautrix (v[\d.]+)$"),
+        "go": read_value(text, r'GO_VERSION: "([\d.]+)"$'),
+    }
+    latest = {"mautrix": latest_mautrix(), "go": latest_go() or current["go"]}
+    changes = {k: (current[k], latest[k]) for k in current if version_key(latest[k]) > version_key(current[k])}
+    if not changes:
+        return False
+
+    if "go" in changes:
+        build.write_text(text.replace(f'GO_VERSION: "{current["go"]}"', f'GO_VERSION: "{latest["go"]}"'))
+    if "mautrix" in changes:
+        # Update go.mod and go.sum with the Go toolchain the add-on builds with
+        subprocess.run(
+            ["docker", "run", "--rm", "-v", f"{folder}:/src", "-w", "/src", f"golang:{latest['go']}-alpine",
+             "sh", "-c", f"go get maunium.net/go/mautrix@{latest['mautrix']} && go mod tidy && chown {os_ids()} go.mod go.sum"],
+            check=True,
+        )
+
+    addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
+    parts = addon_version.split(".")
+    parts[2] = str(int(parts[2]) + 1)
+    new_version = ".".join(parts)
+    set_addon_version("matrix_helper_bot", new_version)
+
+    names = {"mautrix": "mautrix-go", "go": "Go"}
+    add_changelog_entry("matrix_helper_bot", new_version, [f"Update {names[k]} {old} → {new}." for k, (old, new) in changes.items()])
+    print(f"matrix_helper_bot: {addon_version} -> {new_version} ({', '.join(changes)})", file=sys.stderr)
+    return True
+
+
+def os_ids():
+    import os
+    return f"{os.getuid()}:{os.getgid()}"
+
+
 def main():
     changed = []
     if update_matrix():
@@ -208,6 +266,8 @@ def main():
         changed.append("matrix_call_relay")
     if update_group_calls():
         changed.append("matrix_group_calls")
+    if update_helper_bot():
+        changed.append("matrix_helper_bot")
     print("\n".join(changed))
     print(f"Checked {date.today()}: {', '.join(changed) or 'everything up to date'}", file=sys.stderr)
 

@@ -40,6 +40,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add matrix matrix_call_relay matrix_group_calls
+          git add matrix matrix_call_relay matrix_group_calls matrix_helper_bot
           git commit -m "chore: update ${{ steps.check.outputs.changed }} to latest upstream releases"
           git push

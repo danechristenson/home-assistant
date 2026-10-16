@@ -27,7 +27,7 @@ import re, sys
 text = open(sys.argv[1]).read()
 args = [f"BUILD_FROM={re.search(r'^  amd64: (\S+)$', text, re.M).group(1)}"]
 section = text.split("args:", 1)[1] if "args:" in text else ""
-args += [f"{k}={v}" for k, v in re.findall(r"^  (\w+): (\S+)$", section, re.M)]
+args += [f"{k}={v.strip(chr(34))}" for k, v in re.findall(r"^  (\w+): (\S+)$", section, re.M)]
 print(" ".join(f"--build-arg {a}" for a in args))
 EOF
 )
@@ -74,6 +74,19 @@ EOF
         grep -q '^livekit_service_url=https://livekit.example.com$' "$DATA/share/matrix-group-calls/calls.conf" \
             || fail "call service not shared with the Matrix add-on"
         docker exec "$NAME" grep -q 'max_participants: 8' /tmp/livekit.yaml || fail "call limit missing"
+        ;;
+    matrix_helper_bot)
+        # Without a password it must refuse to start, with a clear message
+        echo '{"username": "helper", "password": "", "helpers": [], "password_message_minutes": 10, "matrix_url": ""}' > "$DATA/options.json"
+        docker run --name "$NAME" -v "$DATA:/data:z" "$IMAGE" > /dev/null 2>&1 || true
+        docker logs "$NAME" 2>&1 | grep -q "Set the bot account's 'password'" || fail "bot did not ask for a password"
+        docker rm -f "$NAME" > /dev/null
+        # With one but no Matrix server, it must keep running and retry
+        echo '{"username": "helper", "password": "x", "helpers": [], "password_message_minutes": 10, "matrix_url": "http://127.0.0.1:9"}' > "$DATA/options.json"
+        docker run -d --name "$NAME" -v "$DATA:/data:z" "$IMAGE" > /dev/null
+        sleep 5
+        [ "$(docker inspect -f '{{.State.Running}}' "$NAME")" = "true" ] || fail "bot exited"
+        docker logs "$NAME" 2>&1 | grep -q "retrying in 15 seconds" || fail "bot did not retry"
         ;;
     *)
         fail "no smoke test for $ADDON"

@@ -1,0 +1,25 @@
+name: Matrix Helper Bot
+version: "1.0.0"
+slug: matrix_helper_bot
+description: Lets chosen people reset forgotten Matrix passwords from a chat room
+url: https://github.com/danechristenson/home-assistant/tree/main/matrix_helper_bot
+arch:
+  - amd64
+  - aarch64
+init: false
+startup: application
+boot: auto
+options:
+  username: helper
+  password: ""
+  helpers: []
+  password_message_minutes: 10
+  matrix_url: ""
+schema:
+  username: str
+  password: password
+  helpers:
+    - user: str
+      reset_passwords: bool
+  password_message_minutes: int(1,60)
+  matrix_url: url?

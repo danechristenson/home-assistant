@@ -25,6 +25,7 @@ Or click the button above to add the repository in one step.
 | ------ | ----------- |
 | [Matrix](./matrix) | Private, encrypted group chat on Home Assistant, using the Element app |
 | [Matrix Group Calls](./matrix_group_calls) | Companion to Matrix: group voice and video calls with screen sharing. Optional; needs a reverse proxy and router port forwards. |
+| [Matrix Helper Bot](./matrix_helper_bot) | Companion to Matrix: lets people you choose reset forgotten passwords from an encrypted chat room. Optional; no ports. |
 | [Matrix Call Relay](./matrix_call_relay) | Companion to Matrix: lets voice and video calls connect between different networks. Optional; needs router port forwards. |
 | [VoceChat](./vocechat) | Private group chat for your family or team, hosted on Home Assistant |
 
