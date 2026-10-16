@@ -1,0 +1,8 @@
+# Keeps the workflow's actions (e.g. actions/checkout) current; add-on
+# dependencies are updated daily by .github/workflows/update-addons.yml
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
