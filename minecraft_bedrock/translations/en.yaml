@@ -1,0 +1,63 @@
+configuration:
+  eula:
+    name: Accept the Minecraft EULA
+    description: >-
+      Required. Turning this on accepts the Minecraft End User License
+      Agreement (https://www.minecraft.net/eula).
+  server_name:
+    name: Server name
+    description: Shown in the Friends tab and the server list.
+  level_name:
+    name: World
+    description: >-
+      The world folder to play. A new name creates a new world; the old one is
+      kept.
+  level_seed:
+    name: Seed for new worlds
+    description: Only used when a new world is created. Empty for random.
+  gamemode:
+    name: Game mode
+  difficulty:
+    name: Difficulty
+  allow_cheats:
+    name: Allow cheats
+    description: Needed for operators to use commands.
+  allow_list:
+    name: Only allowed players
+    description: >-
+      Only players on the allowlist can join (add them from chat with the
+      Matrix Helper Bot). Off: anyone who finds the server can join.
+  default_player_permission_level:
+    name: New players are
+    description: Visitors can only look around; members can build and play.
+  max_players:
+    name: Most players at once
+  view_distance:
+    name: View distance (chunks)
+  tick_distance:
+    name: Simulation distance (chunks)
+    description: How far around players the world keeps running.
+  player_idle_timeout:
+    name: Kick idle players after (minutes)
+    description: 0 never kicks.
+  lan_visibility:
+    name: Show on the home network
+    description: Lets devices at home find the server in the Friends tab.
+  server_port:
+    name: Port (IPv4)
+  server_port_v6:
+    name: Port (IPv6)
+  transport:
+    name: Connection type
+    description: >-
+      NetherNet is required by current Bedrock versions. RakNet only for old
+      ones.
+  helper_bot_key:
+    name: Matrix Helper Bot key
+    description: >-
+      Lets the Matrix Helper Bot add, promote and remove players. Any random
+      text of 16 characters or more; set the same value as 'minecraft_key' in
+      the Matrix Helper Bot. Empty turns this off.
+network:
+  19132/udp: Minecraft (IPv4)
+  19133/udp: Minecraft (IPv6)

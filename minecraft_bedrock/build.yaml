@@ -1,0 +1,6 @@
+build_from:
+  amd64: itzg/minecraft-bedrock-server:2026.10.0
+  aarch64: itzg/minecraft-bedrock-server:2026.10.0
+args:
+  BEDROCK_VERSION: 1.26.52.3
+  GO_VERSION: "1.27"

@@ -12,8 +12,8 @@ import (
 	"maunium.net/go/mautrix/id"
 )
 
-// The Minecraft add-on's bot API (minecraftserver/web/bot_api.py in the
-// fork): players are added by gamertag; their Xbox ID is learned when they
+// The Minecraft Bedrock add-on's bot API (minecraft_bedrock/botapi):
+// players are added by gamertag; their Xbox ID is learned when they
 // first join, and operator status applies from then on.
 
 type minecraftPlayer struct {
@@ -48,7 +48,7 @@ func (b *Bot) minecraftCall(method, path string, body any) (map[string]json.RawM
 	_ = json.NewDecoder(response.Body).Decode(&result)
 	switch {
 	case response.StatusCode == http.StatusForbidden:
-		warn("The Minecraft add-on refused the bot: check 'minecraft_key' (copy it from the Minecraft panel)")
+		warn("The Minecraft add-on refused the bot: 'minecraft_key' must match its 'helper_bot_key'")
 		return nil, refuse("The Minecraft server didn't accept my key. Ask the server admin to check the bot's settings.")
 	case response.StatusCode >= 400:
 		var message string

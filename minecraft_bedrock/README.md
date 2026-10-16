@@ -1,0 +1,22 @@
+# Home Assistant Add-on: Minecraft Bedrock
+
+A Minecraft Bedrock server for phones, tablets, consoles and Windows.
+
+![Supports amd64 Architecture][amd64-shield]
+![Supports aarch64 Architecture][aarch64-shield]
+
+Runs [itzg/minecraft-bedrock-server][itzg], the widely used Bedrock server
+image, with its settings on the Home Assistant Configuration tab.
+
+- Only allowed players can join (an allowlist), on by default
+- Works with the [Matrix Helper Bot][bot]: let players join, make them
+  operators and remove them from an encrypted chat room, by gamertag
+- Follows Mojang's Bedrock releases through this repository's daily updates,
+  so players' apps and the server stay on the same version
+
+See the **Documentation** tab for setup.
+
+[itzg]: https://github.com/itzg/docker-minecraft-bedrock-server
+[bot]: https://github.com/danechristenson/home-assistant/tree/main/matrix_helper_bot
+[amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
+[aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg

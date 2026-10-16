@@ -157,7 +157,7 @@ func main() {
 	if options.MinecraftURL == "" {
 		// The Minecraft add-on uses the host network, which Home Assistant's
 		// internal network reaches at its gateway
-		options.MinecraftURL = "http://172.30.32.1:8789"
+		options.MinecraftURL = "http://172.30.32.1:8790"
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -338,7 +338,7 @@ func (b *Bot) loadHelpers() {
 		}
 		b.helpers[id.UserID(user)] = Permissions{ResetPasswords: entry.ResetPasswords, Minecraft: entry.Minecraft}
 		if entry.Minecraft && b.options.MinecraftKey == "" {
-			warn("%s has the minecraft permission, but 'minecraft_key' isn't set; copy it from the Minecraft add-on's panel", user)
+			warn("%s has the minecraft permission, but 'minecraft_key' isn't set; use the same value as 'helper_bot_key' in the Minecraft Bedrock add-on", user)
 		}
 	}
 	if len(b.helpers) == 0 {

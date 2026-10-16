@@ -1,0 +1,72 @@
+name: Minecraft Bedrock
+version: "2026.10.0.1"
+slug: minecraft_bedrock
+description: Minecraft Bedrock server for phones, tablets, consoles and Windows
+url: https://github.com/danechristenson/home-assistant/tree/main/minecraft_bedrock
+arch:
+  - amd64
+  - aarch64
+init: false
+startup: application
+boot: auto
+# Bedrock's NetherNet transport needs the host network
+host_network: true
+# Console commands (send-command) reach the server through stdin
+stdin: true
+ports:
+  19132/udp: 19132
+  19133/udp: 19133
+ports_description:
+  19132/udp: Minecraft (IPv4)
+  19133/udp: Minecraft (IPv6)
+# The server program and Mojang's built-in packs are downloaded again on
+# start, so keep them out of backups (worlds are kept)
+backup_exclude:
+  - bedrock_server-*
+  - "*.zip"
+  - behavior_packs/vanilla*
+  - behavior_packs/chemistry*
+  - behavior_packs/experimental*
+  - resource_packs/vanilla*
+  - resource_packs/chemistry*
+  - resource_packs/editor
+  - definitions
+  - run
+options:
+  eula: false
+  server_name: Minecraft on Home Assistant
+  level_name: Bedrock level
+  level_seed: ""
+  gamemode: survival
+  difficulty: normal
+  allow_cheats: false
+  allow_list: true
+  default_player_permission_level: member
+  max_players: 10
+  view_distance: 32
+  tick_distance: 4
+  player_idle_timeout: 30
+  lan_visibility: true
+  server_port: 19132
+  server_port_v6: 19133
+  transport: nethernet
+  helper_bot_key: ""
+schema:
+  eula: bool
+  server_name: str
+  level_name: str
+  level_seed: str?
+  gamemode: list(survival|creative|adventure)
+  difficulty: list(peaceful|easy|normal|hard)
+  allow_cheats: bool
+  allow_list: bool
+  default_player_permission_level: list(visitor|member|operator)
+  max_players: int(1,100)
+  view_distance: int(5,96)
+  tick_distance: int(4,12)
+  player_idle_timeout: int(0,1440)
+  lan_visibility: bool
+  server_port: port
+  server_port_v6: port
+  transport: list(nethernet|raknet)
+  helper_bot_key: password?

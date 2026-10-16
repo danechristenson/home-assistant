@@ -24,8 +24,8 @@ configuration:
   minecraft_key:
     name: Minecraft bot key
     description: >-
-      Needed for the 'minecraft' permission. Copy it from the Minecraft
-      Server add-on's panel (Players → Bot key).
+      Needed for the 'minecraft' permission: the same value as
+      'helper_bot_key' in the Minecraft Bedrock add-on.
   minecraft_url:
     name: Minecraft add-on address (advanced)
     description: >-

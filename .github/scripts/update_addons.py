@@ -2,7 +2,8 @@
 """Bump the Matrix add-ons to the latest upstream releases.
 
 Checks Continuwuity, Element Web, qrcode-generator, coturn, LiveKit,
-lk-jwt-service, and mautrix-go and Go for the helper bot. For each add-on
+lk-jwt-service, mautrix-go and Go for the helper bot, and the itzg image and
+Mojang's Bedrock server for Minecraft. For each add-on
 whose dependencies changed, updates build.yaml, the add-on version and the
 changelog, then prints the changed add-on folders (one per line) for the
 workflow to build and test.
@@ -253,6 +254,55 @@ def update_helper_bot():
     return True
 
 
+def latest_itzg_bedrock():
+    tags = get_json("https://hub.docker.com/v2/repositories/itzg/minecraft-bedrock-server/tags?page_size=100&ordering=last_updated")
+    versions = [t["name"] for t in tags["results"] if re.fullmatch(r"\d{4}\.\d+\.\d+", t["name"])]
+    return max(versions, key=version_key)
+
+
+def latest_bedrock():
+    links = get_json("https://net.web.minecraft-services.net/api/v1.0/download/links",
+                     {"User-Agent": "itzg/minecraft-bedrock-server"})
+    url = next(l["downloadUrl"] for l in links["result"]["links"] if l["downloadType"] == "serverBedrockLinux")
+    return re.search(r"bedrock-server-([\d.]+)\.zip", url).group(1)
+
+
+def update_minecraft():
+    """The add-on version is the itzg image version plus a fourth number that
+    counts Bedrock updates (2026.10.0.3). A new Bedrock release only needs a
+    restart, which installing the bumped version gives (with Auto update on)."""
+    folder = ROOT / "minecraft_bedrock"
+    build = folder / "build.yaml"
+    text = build.read_text()
+    current = {
+        "itzg": read_value(text, r"itzg/minecraft-bedrock-server:([\d.]+)$"),
+        "bedrock": read_value(text, r"BEDROCK_VERSION: ([\d.]+)$"),
+    }
+    latest = {"itzg": latest_itzg_bedrock(), "bedrock": latest_bedrock()}
+    changes = {k: (current[k], latest[k]) for k in current if version_key(latest[k]) > version_key(current[k])}
+    if not changes:
+        return False
+
+    text = text.replace(f"itzg/minecraft-bedrock-server:{current['itzg']}", f"itzg/minecraft-bedrock-server:{latest['itzg']}")
+    text = text.replace(f"BEDROCK_VERSION: {current['bedrock']}", f"BEDROCK_VERSION: {latest['bedrock']}")
+    build.write_text(text)
+
+    addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
+    if "itzg" in changes:
+        new_version = f"{latest['itzg']}.1"
+    else:
+        parts = addon_version.split(".")
+        parts = parts + ["0"] if len(parts) == 3 else parts
+        parts[3] = str(int(parts[3]) + 1)
+        new_version = ".".join(parts)
+    set_addon_version("minecraft_bedrock", new_version)
+
+    names = {"itzg": "itzg/minecraft-bedrock-server", "bedrock": "Bedrock server"}
+    add_changelog_entry("minecraft_bedrock", new_version, [f"Update {names[k]} {old} → {new}." for k, (old, new) in changes.items()])
+    print(f"minecraft_bedrock: {addon_version} -> {new_version} ({', '.join(changes)})", file=sys.stderr)
+    return True
+
+
 def os_ids():
     import os
     return f"{os.getuid()}:{os.getgid()}"
@@ -268,6 +318,8 @@ def main():
         changed.append("matrix_group_calls")
     if update_helper_bot():
         changed.append("matrix_helper_bot")
+    if update_minecraft():
+        changed.append("minecraft_bedrock")
     print("\n".join(changed))
     print(f"Checked {date.today()}: {', '.join(changed) or 'everything up to date'}", file=sys.stderr)
 

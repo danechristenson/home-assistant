@@ -14,8 +14,8 @@ helpers** room, and the bot posts a new password for them to pass on.
 
 - You list each helper and what they may do; each permission has its own
   encrypted room
-- Minecraft: `!minecraft add Gamertag`, `op`, `remove` (needs the Minecraft
-  Server add-on from danechristenson/HomeAssistantAddOns)
+- Minecraft: `!minecraft add Gamertag`, `op`, `remove` (with the Minecraft
+  Bedrock add-on from this repository)
 - It never resets server admins', helpers' or deactivated accounts
 - Only works from verified devices; new passwords are deleted after a few minutes
 

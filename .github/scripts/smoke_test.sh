@@ -88,6 +88,21 @@ EOF
         [ "$(docker inspect -f '{{.State.Running}}' "$NAME")" = "true" ] || fail "bot exited"
         docker logs "$NAME" 2>&1 | grep -q "retrying in 15 seconds" || fail "bot did not retry"
         ;;
+    minecraft_bedrock)
+        cat > "$DATA/options.json" <<'JSON'
+{"eula": true, "server_name": "Smoke test", "level_name": "Smoke", "level_seed": "", "gamemode": "survival", "difficulty": "normal", "allow_cheats": false, "allow_list": true, "default_player_permission_level": "member", "max_players": 10, "view_distance": 10, "tick_distance": 4, "player_idle_timeout": 30, "lan_visibility": false, "server_port": 19132, "server_port_v6": 19133, "transport": "nethernet", "helper_bot_key": "smoke-test-key-0123456789"}
+JSON
+        # -i: the add-on runs with stdin open (console commands)
+        docker run -di --name "$NAME" -v "$DATA:/data:z" "$IMAGE" > /dev/null
+        for _ in $(seq 1 60); do
+            docker logs "$NAME" 2>&1 | grep -q "Server started" && break
+            sleep 3
+        done
+        docker logs "$NAME" 2>&1 | grep -q "Server started" || fail "Bedrock did not start"
+        docker exec "$NAME" grep -qx "transport=nethernet" /data/server.properties || fail "settings not applied"
+        docker exec "$NAME" curl -fsS -H "Authorization: Bearer smoke-test-key-0123456789" \
+            http://127.0.0.1:8790/api/bot/players | grep -q '"players"' || fail "bot access did not respond"
+        ;;
     *)
         fail "no smoke test for $ADDON"
         ;;

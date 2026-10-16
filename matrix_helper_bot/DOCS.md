@@ -83,11 +83,10 @@ Each helper can reset at most 5 passwords an hour.
 
 ## Minecraft
 
-Needs the **Minecraft Server for HA** add-on from
-[danechristenson/HomeAssistantAddOns](https://github.com/danechristenson/HomeAssistantAddOns),
-which has the bot hook. Open its panel, scroll to **Players**, and copy the
-**Bot key** into this add-on's `minecraft_key` option. Then restart this
-add-on.
+Needs the **Minecraft Bedrock** add-on from this repository. Make up a
+random key of at least 16 characters (a password manager can generate one),
+set it as `helper_bot_key` in Minecraft Bedrock and as `minecraft_key` here,
+and restart both.
 
 In the Minecraft helpers room, use the player's Xbox gamertag:
 
@@ -102,8 +101,8 @@ In the Minecraft helpers room, use the player's Xbox gamertag:
 A gamertag is all you need: the Minecraft add-on learns the player's Xbox ID
 from the server log the first time they join. Bedrock stores operators by
 Xbox ID, so `!minecraft op` for someone who hasn't joined yet takes effect
-the first time they do. Players configured on the Minecraft panel itself
-aren't affected.
+the first time they do. Players already on the allowlist (for example
+from before) aren't affected.
 
 ## Configuration
 
@@ -124,8 +123,9 @@ anyone else. After changing the list, restart the add-on.
 
 ### Option: `minecraft_key` / `minecraft_url`
 
-The Minecraft add-on's bot key, from its panel. Leave `minecraft_url` empty:
-the bot finds the Minecraft add-on on Home Assistant's internal network.
+The same key as `helper_bot_key` in the Minecraft Bedrock add-on. Leave
+`minecraft_url` empty: the bot finds Minecraft Bedrock on Home Assistant's
+internal network.
 
 ### Option: `password_message_minutes`
 
