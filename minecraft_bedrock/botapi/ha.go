@@ -83,13 +83,12 @@ func observeLine(line string) {
 			name := strings.TrimSpace(m[1])
 			tickLocked(now)
 			stats.lastJoined, stats.lastJoinedAt = name, now.UTC().Format(time.RFC3339)
-			entry := playtimeOf(name)
-			entry.LastSeen = stats.lastJoinedAt
+			playtimeOf(trackedName(name, m[2])).LastSeen = stats.lastJoinedAt
 			defer emitEvent("joined", name)
 		} else if m := disconnected.FindStringSubmatch(line); m != nil {
 			name := strings.TrimSpace(m[1])
 			tickLocked(now)
-			playtimeOf(name).LastSeen = now.UTC().Format(time.RFC3339)
+			playtimeOf(trackedName(name, m[2])).LastSeen = now.UTC().Format(time.RFC3339)
 			defer emitEvent("left", name)
 		} else if m := ruleUpdated.FindStringSubmatch(line); m != nil {
 			if rule, ok := findRule(m[1]); ok {
@@ -120,6 +119,30 @@ func parseRuleValue(value string) any {
 	return value
 }
 
+// trackedName is the Tracked players name a joining player counts as: their
+// gamertag, or an allowlist label with the same Xbox ID (e.g. "Robin" for an
+// allowlist entry named Robin, whatever their real gamertag is)
+func trackedName(gamertag, xuid string) string {
+	for _, name := range stats.tracked {
+		if strings.EqualFold(name, gamertag) {
+			return name
+		}
+	}
+	if xuid == "" {
+		return gamertag
+	}
+	var allowlist []allowEntry
+	readJSON("allowlist.json", &allowlist)
+	for _, name := range stats.tracked {
+		for _, entry := range allowlist {
+			if strings.EqualFold(entryName(entry), name) && entryXuid(entry) == xuid {
+				return name
+			}
+		}
+	}
+	return gamertag
+}
+
 func playtimeOf(name string) *playtime {
 	key := strings.ToLower(name)
 	entry := stats.playtime[key]
@@ -140,12 +163,7 @@ func tickLocked(now time.Time) {
 	elapsed := int64(now.Sub(stats.lastTick).Seconds())
 	stats.lastTick = now
 	today := now.Format("2006-01-02")
-	live.Lock()
-	online := make([]string, 0, len(live.online))
-	for name := range live.online {
-		online = append(online, name)
-	}
-	live.Unlock()
+	online := onlinePlayers()
 	for _, entry := range stats.playtime {
 		if entry.Day != today {
 			entry.Day, entry.TodaySec = today, 0
@@ -154,8 +172,8 @@ func tickLocked(now time.Time) {
 	if elapsed <= 0 || elapsed > 600 { // asleep or clock jump: don't count it
 		return
 	}
-	for _, name := range online {
-		entry := playtimeOf(name)
+	for _, player := range online {
+		entry := playtimeOf(trackedName(player.name, player.xuid))
 		entry.TotalSec += elapsed
 		entry.TodaySec += elapsed
 		entry.LastSeen = now.UTC().Format(time.RFC3339)
@@ -164,6 +182,18 @@ func tickLocked(now time.Time) {
 }
 
 // emitEvent is called with stats unlocked (deferred in observeLine)
+type onlinePlayer struct{ name, xuid string }
+
+func onlinePlayers() []onlinePlayer {
+	live.Lock()
+	defer live.Unlock()
+	list := make([]onlinePlayer, 0, len(live.online))
+	for name := range live.online {
+		list = append(list, onlinePlayer{name, live.xuid[name]})
+	}
+	return list
+}
+
 func emitEvent(kind, name string) {
 	stats.Lock()
 	client := stats.mqtt
@@ -243,9 +273,13 @@ func statePayload() []byte {
 	}
 	players := map[string]any{}
 	today := time.Now().Format("2006-01-02")
+	playing := map[string]bool{}
+	for _, player := range onlinePlayers() {
+		playing[strings.ToLower(trackedName(player.name, player.xuid))] = true
+	}
 	for _, name := range stats.tracked {
 		entry := stats.playtime[strings.ToLower(name)]
-		p := map[string]any{"online": contains(online, strings.ToLower(name)), "today_min": 0, "total_min": 0, "last_seen": nil}
+		p := map[string]any{"online": playing[strings.ToLower(name)], "today_min": 0, "total_min": 0, "last_seen": nil}
 		if entry != nil {
 			if entry.Day == today {
 				p["today_min"] = entry.TodaySec / 60
@@ -306,10 +340,10 @@ type entity struct {
 
 func entities(tracked []string) []entity {
 	list := []entity{
-		{"binary_sensor", "running", map[string]any{"name": "Server", "device_class": "running", "value_template": "{{ 'ON' if value_json.running else 'OFF' }}"}, false},
+		{"binary_sensor", "server_running", map[string]any{"name": "Server", "device_class": "running", "value_template": "{{ 'ON' if value_json.running else 'OFF' }}"}, false},
 		{"sensor", "players_online", map[string]any{"name": "Players online", "icon": "mdi:account-group", "unit_of_measurement": "players", "state_class": "measurement",
 			"value_template": "{{ value_json.online_count }}", "json_attributes_topic": topicState, "json_attributes_template": "{{ {'players': value_json.online} | tojson }}"}, false},
-		{"sensor", "version", map[string]any{"name": "Bedrock version", "icon": "mdi:information-outline", "entity_category": "diagnostic", "value_template": "{{ value_json.version }}"}, false},
+		{"sensor", "bedrock_version", map[string]any{"name": "Bedrock version", "icon": "mdi:information-outline", "entity_category": "diagnostic", "value_template": "{{ value_json.version }}"}, false},
 		{"sensor", "world", map[string]any{"name": "World", "icon": "mdi:earth", "value_template": "{{ value_json.world }}"}, false},
 		{"sensor", "seed", map[string]any{"name": "World seed", "icon": "mdi:sprout", "entity_category": "diagnostic", "value_template": "{{ value_json.seed }}"}, false},
 		{"sensor", "game_mode", map[string]any{"name": "Game mode", "icon": "mdi:sword", "value_template": "{{ value_json.gamemode | capitalize }}"}, false},
@@ -357,7 +391,26 @@ func entities(tracked []string) []entity {
 	return list
 }
 
+// legacyDiscovery are entities earlier versions published under other ids
+var legacyDiscovery = []string{
+	"homeassistant/binary_sensor/minecraft_bedrock/running/config",
+	"homeassistant/sensor/minecraft_bedrock/version/config",
+}
+
 func publishDiscovery(client *mqttClient, tracked []string) {
+	published := []string{}
+	defer func() {
+		// Remove entities no longer published (renamed, or players no longer
+		// tracked): an empty retained config deletes them in Home Assistant
+		var before []string
+		readJSON("discovery.json", &before)
+		for _, topic := range append(before, legacyDiscovery...) {
+			if !contains(published, topic) {
+				client.Publish(topic, nil, true)
+			}
+		}
+		_ = writeJSON("discovery.json", published)
+	}()
 	for _, e := range entities(tracked) {
 		config := map[string]any{
 			"unique_id":         topicBase + "_" + e.id,
@@ -381,7 +434,9 @@ func publishDiscovery(client *mqttClient, tracked []string) {
 		config["availability"] = availability
 		config["availability_mode"] = "all"
 		raw, _ := json.Marshal(config)
-		client.Publish(fmt.Sprintf("homeassistant/%s/%s/%s/config", e.component, topicBase, e.id), raw, true)
+		topic := fmt.Sprintf("homeassistant/%s/%s/%s/config", e.component, topicBase, e.id)
+		client.Publish(topic, raw, true)
+		published = append(published, topic)
 	}
 }
 

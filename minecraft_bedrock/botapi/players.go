@@ -44,8 +44,9 @@ var (
 	live = struct {
 		sync.Mutex
 		running bool
-		online  map[string]bool
-	}{online: map[string]bool{}}
+		online  map[string]bool   // lower-case gamertag
+		xuid    map[string]string // lower-case gamertag -> Xbox ID
+	}{online: map[string]bool{}, xuid: map[string]string{}}
 )
 
 const (
@@ -388,6 +389,7 @@ func readLine(line string) {
 		name := strings.TrimSpace(match[1])
 		live.Lock()
 		live.online[strings.ToLower(name)] = true
+		live.xuid[strings.ToLower(name)] = match[2]
 		live.Unlock()
 		recordConnection(name, match[2])
 	} else if match := disconnected.FindStringSubmatch(line); match != nil {

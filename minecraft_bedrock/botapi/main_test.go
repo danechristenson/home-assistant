@@ -19,7 +19,7 @@ func setup(t *testing.T) (http.Handler, func() []string) {
 	t.Helper()
 	dataDir = t.TempDir()
 	live.Lock()
-	live.running, live.online = false, map[string]bool{}
+	live.running, live.online, live.xuid = false, map[string]bool{}, map[string]string{}
 	live.Unlock()
 	stats.Lock()
 	stats.rules, stats.playtime, stats.lastTick = map[string]any{}, map[string]*playtime{}, time.Time{}

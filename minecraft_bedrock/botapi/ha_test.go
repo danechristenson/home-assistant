@@ -154,10 +154,38 @@ func TestDiscoveryTemplates(t *testing.T) {
 			t.Errorf("%s has no name", e.id)
 		}
 	}
-	for _, id := range []string{"running", "players_online", "version", "seed", "activity", "allowlist", "difficulty", "kick_everyone", "message",
+	for _, id := range []string{"server_running", "players_online", "bedrock_version", "seed", "activity", "allowlist", "difficulty", "kick_everyone", "message",
 		"rule_keepinventory", "rule_playerssleepingpercentage", "cool_kid_playing", "cool_kid_playtime_today", "cool_kid_playtime", "cool_kid_last_seen"} {
 		if !seen[id] {
 			t.Errorf("missing entity %s", id)
 		}
+	}
+}
+
+// Tracked players can be allowlist labels: "Robin" counts whoever joins with
+// the Xbox ID of the allowlist entry named Robin, whatever their gamertag
+func TestTrackedByAllowlistLabel(t *testing.T) {
+	setup(t)
+	os.WriteFile(filepath.Join(dataDir, "allowlist.json"), []byte(`[{"name":"Robin","xuid":"999"},{"name":"Sam","xuid":"888"}]`), 0o644)
+	stats.tracked = []string{"Robin", "Sam"}
+	base := time.Now().Add(-10 * time.Minute)
+	readLine("[INFO] Server started.")
+	stats.lastTick = base
+	readLine("[INFO] Player connected: RealGamer123, xuid: 999")
+	stats.Lock()
+	stats.lastTick = base
+	tickLocked(base.Add(6 * time.Minute))
+	stats.Unlock()
+	var state map[string]any
+	json.Unmarshal(statePayload(), &state)
+	players := state["players"].(map[string]any)
+	if robin := players["robin"].(map[string]any); robin["online"] != true || robin["total_min"] != float64(6) || robin["last_seen"] == nil {
+		t.Errorf("Robin: %v", robin)
+	}
+	if sam := players["sam"].(map[string]any); sam["online"] != false || sam["total_min"] != float64(0) {
+		t.Errorf("Sam: %v", sam)
+	}
+	if state["last_joined"] != "RealGamer123" {
+		t.Errorf("last joined should be the real gamertag: %v", state["last_joined"])
 	}
 }

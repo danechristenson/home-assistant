@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026.10.1.6
+
+- Tracked players can be allowlist names: a player listed as "Robin" is
+  tracked by the Xbox ID on the allowlist entry named Robin, whatever their
+  gamertag is.
+- The server-running and version entities are now
+  `binary_sensor.minecraft_bedrock_server_running` and
+  `sensor.minecraft_bedrock_bedrock_version` (the old ids clashed with the
+  Supervisor integration's add-on entities). Entities that are no longer
+  published, e.g. players removed from Tracked players, are removed.
+
 ## 2026.10.1.5
 
 - Home Assistant entities over MQTT discovery (needs the Mosquitto broker
