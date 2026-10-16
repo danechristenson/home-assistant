@@ -372,6 +372,8 @@ func recordConnection(name, xuid string) {
 }
 
 func readLine(line string) {
+	// First, so playtime counts up to this moment with the old online list
+	observeLine(line)
 	switch {
 	case strings.Contains(line, "Server started."):
 		live.Lock()

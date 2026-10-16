@@ -58,6 +58,12 @@ configuration:
       Lets the Matrix Helper Bot add, promote and remove players. Any random
       text of 16 characters or more; set the same value as 'minecraft_key' in
       the Matrix Helper Bot. Empty turns this off.
+  tracked_players:
+    name: Tracked players
+    description: >-
+      Xbox gamertags to track in Home Assistant: each gets "playing",
+      "playtime today", "total playtime" and "last seen" entities. Needs the
+      Mosquitto broker add-on.
 network:
   19132/udp: Minecraft (IPv4)
   19133/udp: Minecraft (IPv6)

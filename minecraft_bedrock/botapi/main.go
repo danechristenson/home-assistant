@@ -5,6 +5,7 @@
 //     every allowed player, with add, change-role and remove.
 //   - Bot API (port 8790, only with BOT_KEY): add, re-role and remove players
 //     added from chat.
+//   - Home Assistant entities over MQTT discovery (ha.go).
 //
 // Player logic is in players.go.
 package main
@@ -14,6 +15,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -33,6 +35,16 @@ func main() {
 		log.Printf("[INFO] Matrix Helper Bot access on port %s (Home Assistant's internal network only)", address[1:])
 		go serve("Matrix Helper Bot access", address, botHandler(key))
 	}
+
+	var tracked []string
+	if list, ok := options()["tracked_players"].([]any); ok {
+		for _, item := range list {
+			if name, ok := item.(string); ok && gamertag.MatchString(strings.TrimSpace(name)) {
+				tracked = append(tracked, strings.TrimSpace(name))
+			}
+		}
+	}
+	go startHomeAssistant(tracked)
 
 	serve("The sidebar panel", envOr("PANEL_ADDRESS", ":8791"), panelHandler())
 }

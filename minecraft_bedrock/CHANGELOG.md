@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026.10.1.5
+
+- Home Assistant entities over MQTT discovery (needs the Mosquitto broker
+  add-on): server running, players online, version, world, seed, game mode,
+  allowed players, last join, server started; a join/leave event; and
+  controls (allowlist, difficulty, game rules, day/night, clear weather,
+  kick everyone, message everyone).
+- **Tracked players** option: playing, playtime today, total playtime and
+  last seen for each listed gamertag.
+
 ## 2026.10.1.4
 
 - The Minecraft panel changes the game while people play, without a

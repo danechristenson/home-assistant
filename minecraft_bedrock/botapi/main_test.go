@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 const testKey = "0123456789abcdef0123"
@@ -20,6 +21,11 @@ func setup(t *testing.T) (http.Handler, func() []string) {
 	live.Lock()
 	live.running, live.online = false, map[string]bool{}
 	live.Unlock()
+	stats.Lock()
+	stats.rules, stats.playtime, stats.lastTick = map[string]any{}, map[string]*playtime{}, time.Time{}
+	stats.difficulty, stats.allowlist, stats.lastJoined, stats.lastJoinedAt, stats.startedAt = "", nil, "", "", ""
+	stats.tracked, stats.mqtt = nil, nil
+	stats.Unlock()
 	commands := filepath.Join(dataDir, "commands")
 	script := filepath.Join(dataDir, "send-command")
 	os.MkdirAll(filepath.Join(dataDir, "run"), 0o755)

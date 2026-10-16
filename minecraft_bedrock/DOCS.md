@@ -48,6 +48,35 @@ Everything else (server name, world, game mode, cheats, player limits,
 distances, ports) is changed on the Configuration tab, and the add-on
 restarts to apply it. Bedrock can't change the game mode while running.
 
+## Home Assistant entities
+
+With the **Mosquitto broker** add-on (and Home Assistant's MQTT
+integration), the add-on adds a **Minecraft Bedrock** device to Home
+Assistant, with:
+
+| Entity | |
+| --- | --- |
+| Server | Running or not (a health check) |
+| Players online | How many, with their names as the `players` attribute |
+| Bedrock version, World, World seed, Game mode | About the server and world |
+| Allowed players, Last player to join, Last join, Server started | Activity |
+| Player activity | An event when anyone joins or leaves (`joined` / `left`, with the `player`), for notifications |
+| Only allowed players, Difficulty, game rule switches, Players needed to sleep | Controls: change them live |
+| Make it day, Make it night, Clear the weather, Kick everyone | Buttons |
+| Message everyone | Text: what you set is sent to everyone playing |
+
+For each gamertag in **Tracked players**: *playing*, *playtime today*
+(resets at midnight), *total playtime* and *last seen*. Playtime is counted
+by the minute while they're online, and works with Home Assistant's
+statistics and utility meters (e.g. weekly totals).
+
+Example automation: at 20:50 set **Message everyone** to "Bedtime in 10
+minutes", at 21:00 press **Kick everyone**.
+
+Note: Home Assistant can't limit which users may use an entity. Non-admin
+users could change the controls if they find them, so keep them off their
+dashboards.
+
 ## Who can join
 
 **Only allowed players** is on by default: only players on the allowlist can
