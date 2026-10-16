@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.10.1.1
+
+- Update itzg/minecraft-bedrock-server 2026.10.0 → 2026.10.1.
+
 ## 2026.10.0.2
 
 - Import a world moved from another add-on: put it in
