@@ -133,8 +133,15 @@ func TestRemoveKeepsOtherPlayers(t *testing.T) {
 	if got := file(t, "permissions.json"); !reflect.DeepEqual(got, asJSON(`[{"xuid":"111","permission":"operator"}]`)) {
 		t.Errorf("permissions: %v", got)
 	}
-	if got := commands(); !strings.HasPrefix(got[len(got)-1], `kick "Steve"`) {
-		t.Errorf("console: %v", got)
+	if got := commands(); strings.HasPrefix(got[len(got)-1], "kick") {
+		t.Errorf("kicked someone who isn't online: %v", got)
+	}
+	// Someone who is online gets kicked
+	bot(h, "POST", "/api/bot/players", `{"name":"Alex"}`)
+	readLine("[INFO] Player connected: Alex, xuid: 333")
+	bot(h, "POST", "/api/bot/players/remove", `{"name":"alex"}`)
+	if got := commands(); !strings.HasPrefix(got[len(got)-1], `kick "Alex"`) {
+		t.Errorf("didn't kick an online player: %v", got)
 	}
 	if code, _ := bot(h, "POST", "/api/bot/players/remove", `{"name":"steve"}`); code != 404 {
 		t.Errorf("second remove: %d", code)

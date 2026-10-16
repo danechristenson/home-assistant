@@ -301,7 +301,13 @@ func removePlayer(name, source string) (Player, error) {
 	if err := apply(&removed, nil); err != nil {
 		return Player{}, err
 	}
-	console(`kick "` + removed.Name + `" Removed from the allowlist`)
+	// Kick them if they're playing (kicking someone offline logs an error)
+	live.Lock()
+	playing := live.online[strings.ToLower(removed.Name)]
+	live.Unlock()
+	if playing {
+		console(`kick "` + removed.Name + `" Removed from the allowlist`)
+	}
 	log.Printf("[INFO] %s: %s was removed", sourceName(source), removed.Name)
 	return removed, nil
 }

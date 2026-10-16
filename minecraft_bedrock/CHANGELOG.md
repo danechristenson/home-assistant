@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.10.1.3
+
+- Only kick a removed player if they're online (kicking someone offline
+  logged a harmless "No targets matched selector" error).
+
 ## 2026.10.1.2
 
 - New **Minecraft** sidebar panel: server status, who's online, every allowed
