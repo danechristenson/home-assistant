@@ -1,5 +1,5 @@
 name: Minecraft Bedrock
-version: "2026.10.0.1"
+version: "2026.10.0.2"
 slug: minecraft_bedrock
 description: Minecraft Bedrock server for phones, tablets, consoles and Windows
 url: https://github.com/danechristenson/home-assistant/tree/main/minecraft_bedrock
@@ -13,6 +13,9 @@ boot: auto
 host_network: true
 # Console commands (send-command) reach the server through stdin
 stdin: true
+# Read-only: worlds to import from /share/minecraft_bedrock_import
+map:
+  - share:ro
 ports:
   19132/udp: 19132
   19133/udp: 19133

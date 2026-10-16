@@ -44,6 +44,31 @@ setting TRANSPORT transport
 # Allowlists and Xbox IDs only work with Xbox sign-in
 export ONLINE_MODE=true
 
+# One-time import of a world moved from another add-on (see the
+# Documentation tab): worlds that already exist here are never overwritten,
+# and the allowlist and permissions are only taken if there are none yet
+IMPORT=/share/minecraft_bedrock_import
+if [[ -d "$IMPORT/worlds" ]]; then
+    mkdir -p /data/worlds
+    for world in "$IMPORT"/worlds/*/; do
+        [[ -d "$world" ]] || continue
+        name=$(basename "$world")
+        if [[ -e "/data/worlds/$name" ]]; then
+            echo "[INFO] Not importing world '$name' from $IMPORT: it already exists here"
+            continue
+        fi
+        cp -a "$world" "/data/worlds/$name"
+        echo "[INFO] Imported world '$name' from $IMPORT"
+    done
+    for file in allowlist.json permissions.json; do
+        if [[ -s "$IMPORT/$file" && ! -s "/data/$file" ]]; then
+            cp "$IMPORT/$file" "/data/$file"
+            echo "[INFO] Imported $file from $IMPORT"
+        fi
+    done
+    echo "[INFO] Once the world looks right, delete $IMPORT"
+fi
+
 mkdir -p /data/run
 : > /data/run/bedrock.log
 

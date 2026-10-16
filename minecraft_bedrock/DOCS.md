@@ -59,13 +59,22 @@ as **New players are** (visitor, member or operator).
 
 ## Moving from another Minecraft add-on
 
-Worlds are folders in `/data/worlds`. To bring a world over (for example
-from "Minecraft Server for HA"), stop both add-ons and copy the old add-on's
-`worlds/<name>` folder, plus `allowlist.json` and `permissions.json`, into
-this add-on's data folder, then set **World** to that name. On Home Assistant
-OS the data folders are `/mnt/data/supervisor/addons/data/<add-on>` on the
-host (reachable with the developer SSH access on port 22222). Keep the old
-add-on, stopped, until you've checked the world.
+The add-on imports worlds from `/share/minecraft_bedrock_import` when it
+starts:
+
+1. Stop the old Minecraft add-on, and take a backup of just that add-on
+   (Settings → System → Backups → Create backup → Partial).
+2. From the backup, copy the world folder (`worlds/<name>`), plus
+   `allowlist.json` and `permissions.json` if you want the same players, into
+   `/share/minecraft_bedrock_import/` (keeping the `worlds/<name>` layout),
+   for example with the Terminal & SSH or Samba add-on.
+3. Set **World** to that name here and start this add-on. The log says
+   `Imported world '<name>'`.
+4. Once you've checked the world, delete `/share/minecraft_bedrock_import`.
+
+A world that already exists here is never overwritten, and the allowlist and
+permissions are only imported if this add-on has none yet. Keep the old
+add-on, stopped, until you've played on the new one.
 
 ## Network
 
