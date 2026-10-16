@@ -12,10 +12,11 @@ lets trusted helpers do it too, without making them admins: they type
 `!reset-password @name` in a private, end-to-end encrypted **Server
 helpers** room, and the bot posts a new password for them to pass on.
 
-- You list each helper and what they may do; each permission has its own
-  encrypted room
-- Minecraft: `!minecraft add Gamertag`, `op`, `remove` (with the Minecraft
-  Bedrock add-on from this repository)
+- Talk to it in any encrypted room it's invited to: "@Helper add Steve"
+- You list each helper and what they may do; passwords only go where
+  everyone may see them
+- Minecraft: `add Gamertag`, `op`, `remove` (with the Minecraft Bedrock
+  add-on from this repository)
 - It never resets server admins', helpers' or deactivated accounts
 - Only works from verified devices; new passwords are deleted after a few minutes
 

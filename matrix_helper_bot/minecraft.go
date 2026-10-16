@@ -66,12 +66,12 @@ func (b *Bot) minecraft(sender id.UserID, room id.RoomID, words []string) error 
 		return refuse("You don't have permission to manage Minecraft players.")
 	}
 	if len(words) == 0 {
-		return refuse("Tell me what to do, like: !minecraft add Gamertag. Type !help for all commands.")
+		return refuse("Tell me what to do, like: %s add Gamertag. Say \"%s help\" for all commands.", b.name, b.name)
 	}
 	action := strings.ToLower(words[0])
 	gamertag := strings.TrimSpace(strings.Join(words[1:], " "))
 	if action != "list" && gamertag == "" {
-		return refuse("Which player? Use their Xbox gamertag, like: !minecraft %s Gamertag", action)
+		return refuse("Which player? Use their Xbox gamertag, like: %s %s Gamertag", b.name, action)
 	}
 
 	switch action {
@@ -118,7 +118,7 @@ func (b *Bot) minecraft(sender id.UserID, room id.RoomID, words []string) error 
 		b.say(room, fmt.Sprintf("%s removed %s from the Minecraft server.", sender, removed.Name))
 		return nil
 	}
-	return refuse("I don't know '!minecraft %s'. Type !help for the Minecraft commands.", words[0])
+	return refuse("I don't know '%s'. Say \"%s help\" for the Minecraft commands.", words[0], b.name)
 }
 
 func (b *Bot) setPlayer(sender id.UserID, room id.RoomID, gamertag, role string) error {

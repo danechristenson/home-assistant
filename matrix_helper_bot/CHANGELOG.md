@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.0
+
+- Talk to the bot in any encrypted room: start a message with its name
+  ("@Helper add Steve", "Helper: list", "Helper" for help). `!` commands
+  still work.
+- It joins rooms when a listed helper invites it, and declines other
+  invites.
+- New passwords are only posted where everyone may see them: the Password
+  helpers room, or a room whose members (including invited ones) can all
+  reset passwords.
+- Fix: the bot can replace its encryption identity if its data is lost
+  (Continuwuity needs the password confirmation in the current format).
+
 ## 1.0.1
 
 - Fix: saving the configuration failed with "expected a URL" while the

@@ -125,6 +125,10 @@ type Bot struct {
 	serverUser id.UserID
 	adminRoom  id.RoomID
 
+	name    string         // display name, as people mention it
+	mention *regexp.Regexp // a leading mention of the bot
+	current *event.Event   // the request being handled (replies thread to it)
+
 	mu      sync.Mutex
 	state   State
 	replies map[id.EventID]chan *event.Event
@@ -252,7 +256,7 @@ func run(parent context.Context, options Options) error {
 		server:     cli.UserID.Homeserver(),
 		serverUser: id.NewUserID("conduit", cli.UserID.Homeserver()),
 		replies:    map[id.EventID]chan *event.Event{},
-		work:       make(chan *event.Event, 32),
+		work:       make(chan *event.Event, 64),
 	}
 	bot.loadState()
 	info("Signed in as %s (device %s)", cli.UserID, cli.DeviceID)
@@ -260,6 +264,7 @@ func run(parent context.Context, options Options) error {
 	if err := bot.crossSign(options.Password); err != nil {
 		return fmt.Errorf("verifying the bot's device: %w", err)
 	}
+	bot.setName()
 	bot.loadHelpers()
 	bot.findAdminRoom()
 	if err := bot.ensureRooms(); err != nil {
@@ -269,6 +274,7 @@ func run(parent context.Context, options Options) error {
 	syncer := cli.Syncer.(*mautrix.DefaultSyncer)
 	syncer.OnSync(cli.DontProcessOldEvents)
 	syncer.OnEventType(event.EventMessage, bot.onMessage)
+	syncer.OnEventType(event.StateMember, bot.onMember)
 	helper.DecryptErrorCallback = func(evt *event.Event, err error) {
 		if bot.kindOf(evt.RoomID) != nil {
 			warn("Could not decrypt a message from %s: %v", evt.Sender, err)
@@ -313,7 +319,18 @@ func (b *Bot) crossSign(password string) error {
 		return nil
 	}
 	machine := b.crypto.Machine()
-	if _, _, err := machine.GenerateAndUploadCrossSigningKeysWithPassword(b.ctx, password, ""); err != nil {
+	// Replacing an existing identity (e.g. after the add-on's data was lost)
+	// needs the password; send it with the current "identifier" field, which
+	// Continuwuity requires (mautrix's helper sends the old "user" field)
+	confirm := func(resp *mautrix.RespUserInteractive) any {
+		return map[string]any{
+			"type":       mautrix.AuthTypePassword,
+			"session":    resp.Session,
+			"identifier": mautrix.UserIdentifier{Type: mautrix.IdentifierTypeUser, User: b.cli.UserID.String()},
+			"password":   password,
+		}
+	}
+	if _, _, err := machine.GenerateAndUploadCrossSigningKeys(b.ctx, confirm, ""); err != nil {
 		return err
 	}
 	if err := machine.SignOwnDevice(b.ctx, machine.OwnIdentity()); err != nil {
@@ -328,6 +345,17 @@ func (b *Bot) crossSign(password string) error {
 	b.mu.Unlock()
 	info("Set up the bot's encryption identity and verified its device")
 	return nil
+}
+
+// setName learns how people mention the bot: its display name, its
+// username or its full Matrix ID, optionally with "@" and a ":" or ","
+func (b *Bot) setName() {
+	b.name = b.cli.UserID.Localpart()
+	if resp, err := b.cli.GetDisplayName(b.ctx, b.cli.UserID); err == nil && strings.TrimSpace(resp.DisplayName) != "" {
+		b.name = strings.TrimSpace(resp.DisplayName)
+	}
+	names := []string{regexp.QuoteMeta(b.cli.UserID.String()), regexp.QuoteMeta(b.cli.UserID.Localpart()), regexp.QuoteMeta(b.name)}
+	b.mention = regexp.MustCompile(`(?i)^@?(?:` + strings.Join(names, "|") + `)(?:[:,]\s*|\s+|$)`)
 }
 
 func (b *Bot) loadHelpers() {
@@ -552,13 +580,89 @@ func (b *Bot) onMessage(_ context.Context, evt *event.Event) {
 		if waiting != nil {
 			waiting <- evt
 		}
-	case b.kindOf(evt.RoomID) != nil && evt.Sender != b.cli.UserID:
+	case evt.RoomID != b.adminRoom && evt.Sender != b.cli.UserID:
+		if _, addressed := b.addressed(evt); !addressed {
+			return
+		}
 		select {
 		case b.work <- evt:
 		default:
 			warn("Too many requests at once; ignoring one from %s", evt.Sender)
 		}
 	}
+}
+
+// onMember joins rooms a helper invites the bot to, and declines the rest
+func (b *Bot) onMember(_ context.Context, evt *event.Event) {
+	if evt.StateKey == nil || id.UserID(*evt.StateKey) != b.cli.UserID || evt.Content.AsMember().Membership != event.MembershipInvite {
+		return
+	}
+	if _, helper := b.helpers[evt.Sender]; helper {
+		if _, err := b.cli.JoinRoomByID(b.ctx, evt.RoomID); err != nil {
+			warn("Could not join %s (invited by %s): %v", evt.RoomID, evt.Sender, err)
+		} else {
+			info("Joined %s, invited by %s", evt.RoomID, evt.Sender)
+		}
+		return
+	}
+	if _, err := b.cli.LeaveRoom(b.ctx, evt.RoomID); err == nil {
+		info("Declined an invite from %s: not listed as a helper", evt.Sender)
+	}
+}
+
+// addressed returns the command words if a message is meant for the bot:
+// "!command ..." in any room it's in, or a message starting with a mention
+// of it ("@Hal add Steve", "Hal: add Steve")
+func (b *Bot) addressed(evt *event.Event) ([]string, bool) {
+	content := evt.Content.AsMessage()
+	if content.MsgType != event.MsgText && content.MsgType != event.MsgNotice {
+		return nil, false
+	}
+	if content.RelatesTo != nil && content.RelatesTo.Type == event.RelReplace {
+		return nil, false
+	}
+	content.RemoveReplyFallback()
+	body := strings.TrimSpace(content.Body)
+	if strings.HasPrefix(body, "!") {
+		words := strings.Fields(body[1:])
+		return words, len(words) > 0
+	}
+	if match := b.mention.FindStringIndex(body); match != nil {
+		words := strings.Fields(strings.TrimPrefix(body[match[1]:], "!"))
+		if len(words) == 0 {
+			words = []string{"help"}
+		}
+		return words, true
+	}
+	return nil, false
+}
+
+// private is whether everyone in a room may see new passwords: the Password
+// helpers room, or an encrypted room whose other members can all reset
+// passwords (such as a direct chat between a helper and the bot)
+func (b *Bot) private(room id.RoomID) bool {
+	if kind := b.kindOf(room); kind != nil {
+		return kind.key == "passwords"
+	}
+	if encrypted, err := b.cli.StateStore.IsEncrypted(b.ctx, room); err != nil || !encrypted {
+		return false
+	}
+	// Invited people count too: they could join and read the history
+	resp, err := b.cli.Members(b.ctx, room)
+	if err != nil || len(resp.Chunk) == 0 {
+		return false
+	}
+	for _, evt := range resp.Chunk {
+		_ = evt.Content.ParseRaw(evt.Type)
+		member := evt.Content.AsMember()
+		if evt.StateKey == nil || (member.Membership != event.MembershipJoin && member.Membership != event.MembershipInvite) {
+			continue
+		}
+		if user := id.UserID(*evt.StateKey); user != b.cli.UserID && !b.helpers[user].ResetPasswords {
+			return false
+		}
+	}
+	return true
 }
 
 // worker handles commands one at a time, outside the sync loop, so it can
@@ -569,28 +673,22 @@ func (b *Bot) worker() {
 		case <-b.ctx.Done():
 			return
 		case evt := <-b.work:
+			b.current = evt
 			b.handle(evt)
+			b.current = nil
 		}
 	}
 }
 
+var minecraftShorthand = []string{"add", "allow", "op", "operator", "member", "deop", "remove", "delete", "kick", "list"}
+
 func (b *Bot) handle(evt *event.Event) {
-	kind := b.kindOf(evt.RoomID)
-	if kind == nil {
+	words, addressed := b.addressed(evt)
+	if !addressed {
 		return
 	}
 	room := evt.RoomID
 	content := evt.Content.AsMessage()
-	if content.MsgType != event.MsgText && content.MsgType != event.MsgNotice {
-		return
-	}
-	if content.RelatesTo != nil && content.RelatesTo.Type == event.RelReplace {
-		return
-	}
-	words := strings.Fields(content.Body)
-	if len(words) == 0 || !strings.HasPrefix(words[0], "!") {
-		return
-	}
 	// Never act on the same message twice (sync can repeat after a restart)
 	b.mu.Lock()
 	if slices.Contains(b.state.Handled, evt.ID) {
@@ -604,28 +702,41 @@ func (b *Bot) handle(evt *event.Event) {
 	b.saveState()
 	b.mu.Unlock()
 
-	if !evt.Mautrix.WasEncrypted || evt.Mautrix.TrustState < minTrust {
-		warn("Ignored %s from %s: sent from a session they haven't verified", words[0], evt.Sender)
-		b.say(room, "I only take requests from verified sessions. Verify this device in your app (Settings → Security / Encryption), then try again.")
+	permissions, helper := b.helpers[evt.Sender]
+	if !helper {
+		b.say(room, "Sorry, I only take requests from the people listed in my settings.")
 		return
 	}
-	// Someone who lost the permission since joining
-	if !kind.allowed(b.helpers[evt.Sender]) {
-		b.say(room, "You don't have this permission any more.")
+	if !evt.Mautrix.WasEncrypted {
+		b.say(room, "I only take requests in encrypted rooms.")
+		return
+	}
+	if evt.Mautrix.TrustState < minTrust {
+		warn("Ignored a request from %s: sent from a session they haven't verified", evt.Sender)
+		b.say(room, "I only take requests from verified sessions. Verify this device in your app (Settings → Security / Encryption), then try again.")
 		return
 	}
 
 	command := strings.ToLower(words[0])
 	var err error
 	switch {
-	case command == "!help":
-		b.help(*kind, room)
-	case kind.key == "passwords" && (command == "!reset-password" || command == "!resetpassword" || command == "!reset"):
-		err = b.reset(evt.Sender, room, content, words[1:])
-	case kind.key == "minecraft" && (command == "!minecraft" || command == "!mc"):
+	case command == "help":
+		b.help(permissions, room)
+	case command == "reset-password" || command == "resetpassword" || command == "reset":
+		switch {
+		case !permissions.ResetPasswords:
+			err = refuse("You don't have permission to reset passwords.")
+		case !b.private(room):
+			err = refuse("I only post new passwords in the Password helpers room (or a private chat with me), where everyone may see them. Ask me there.")
+		default:
+			err = b.reset(evt.Sender, room, content, words[1:])
+		}
+	case command == "minecraft" || command == "mc":
 		err = b.minecraft(evt.Sender, room, words[1:])
+	case slices.Contains(minecraftShorthand, command):
+		err = b.minecraft(evt.Sender, room, words)
 	default:
-		b.say(room, fmt.Sprintf("I don't know %s here. Type !help to see what you can do in this room.", words[0]))
+		b.say(room, fmt.Sprintf("I don't know '%s'. Say \"%s help\" to see what I can do.", words[0], b.name))
 	}
 	var refusal Refused
 	if errors.As(err, &refusal) {
@@ -636,21 +747,25 @@ func (b *Bot) handle(evt *event.Event) {
 	}
 }
 
-func (b *Bot) help(kind roomKind, room id.RoomID) {
-	switch kind.key {
-	case "passwords":
-		b.say(room, fmt.Sprintf("!reset-password @name — give someone a new password if they forgot theirs. "+
-			"I post it here, and the message deletes itself after %d minutes.", b.options.MessageMinutes))
-	case "minecraft":
-		b.say(room, strings.Join([]string{
-			"Minecraft commands (use the player's Xbox gamertag):",
-			"!minecraft add Gamertag — let them join the server",
-			"!minecraft op Gamertag — make them an operator (applies once they've joined at least once)",
-			"!minecraft member Gamertag — make an operator a normal player again",
-			"!minecraft remove Gamertag — take them off the server",
-			"!minecraft list — who's been added from chat",
-		}, "\n"))
+func (b *Bot) help(permissions Permissions, room id.RoomID) {
+	lines := []string{fmt.Sprintf("Start a message with \"%s\" (or use ! commands), for example \"%s add Steve\".", b.name, b.name)}
+	if permissions.Minecraft {
+		lines = append(lines,
+			"Minecraft (use the player's Xbox gamertag):",
+			"  add Gamertag — let them join the server",
+			"  op Gamertag — make them an operator (applies once they've joined at least once)",
+			"  member Gamertag — make an operator a normal player again",
+			"  remove Gamertag — take them off the server",
+			"  list — who's been added from chat")
 	}
+	if permissions.ResetPasswords {
+		lines = append(lines, fmt.Sprintf("Passwords: reset-password @name — a new password for someone who forgot theirs. "+
+			"Only in the Password helpers room or a private chat with me; the message deletes itself after %d minutes.", b.options.MessageMinutes))
+	}
+	if !permissions.Minecraft && !permissions.ResetPasswords {
+		lines = append(lines, "You don't have any permissions yet. The server admin can give you some in the Matrix Helper Bot settings.")
+	}
+	b.say(room, strings.Join(lines, "\n"))
 }
 
 var matrixToPattern = regexp.MustCompile(`https://matrix\.to/#/(@[^"?/<>]+)`)
@@ -660,12 +775,14 @@ func (b *Bot) target(content *event.MessageEventContent, words []string) (id.Use
 	var mentioned []string
 	if content.Mentions != nil {
 		for _, user := range content.Mentions.UserIDs {
-			mentioned = append(mentioned, string(user))
+			if user != b.cli.UserID {
+				mentioned = append(mentioned, string(user))
+			}
 		}
 	}
 	if len(mentioned) == 0 {
 		for _, match := range matrixToPattern.FindAllStringSubmatch(content.FormattedBody, -1) {
-			if user, err := url.PathUnescape(match[1]); err == nil {
+			if user, err := url.PathUnescape(match[1]); err == nil && id.UserID(user) != b.cli.UserID {
 				mentioned = append(mentioned, user)
 			}
 		}
@@ -679,7 +796,7 @@ func (b *Bot) target(content *event.MessageEventContent, words []string) (id.Use
 	case len(words) == 1:
 		user = words[0]
 	default:
-		return "", "", refuse("Tell me one account, like: !reset-password @name")
+		return "", "", refuse("Tell me one account, like: reset-password @name")
 	}
 	user = strings.ToLower(user)
 	if !strings.HasPrefix(user, "@") {
@@ -858,8 +975,11 @@ func randomHex(n int) string {
 
 // say posts an (encrypted) notice in one of the bot's rooms and returns its event ID
 func (b *Bot) say(room id.RoomID, text string) id.EventID {
-	resp, err := b.cli.SendMessageEvent(b.ctx, room, event.EventMessage,
-		&event.MessageEventContent{MsgType: event.MsgNotice, Body: text})
+	content := &event.MessageEventContent{MsgType: event.MsgNotice, Body: text}
+	if b.current != nil && b.current.RoomID == room {
+		content.RelatesTo = (&event.RelatesTo{}).SetReplyTo(b.current.ID)
+	}
+	resp, err := b.cli.SendMessageEvent(b.ctx, room, event.EventMessage, content)
 	if err != nil {
 		warn("Could not post in %s: %v", room, err)
 		return ""

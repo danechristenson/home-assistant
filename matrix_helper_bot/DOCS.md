@@ -3,10 +3,10 @@
 Lets people you choose reset forgotten Matrix passwords, and let players
 onto your Minecraft server, from chat, without making them admins.
 
-Each permission has its own end-to-end encrypted room: **Password helpers**
-and **Minecraft helpers**. People are only invited to the rooms for the
-permissions you give them, so someone who can only manage Minecraft players
-never sees passwords.
+Talk to it like a person in any encrypted room it's in: "@Helper add
+Steve" in your family's Minecraft chat. It only does what the people you
+list are allowed to do, and only posts new passwords where everyone in the
+room may see them.
 
 ## Do you need this?
 
@@ -59,18 +59,38 @@ password there (**Password for phone apps**); this is for everyone else.
    in Element: All settings → Encryption/Sessions). On an unverified device
    the bot's messages show as "Unable to decrypt", and it ignores requests.
 
+## Talking to the bot
+
+Start a message with the bot's name, the way you'd mention a person:
+"@Helper add Steve", "Helper: list", or just "Helper" for help. (Its name is
+the bot account's display name; `!` commands like `!help` work too.) Other
+messages are ignored, so it can sit in a normal chat.
+
+**Rooms:** the bot keeps two encrypted rooms of its own, **Password helpers**
+and **Minecraft helpers**, and invites each helper to the ones for their
+permissions. You can also invite it to any other room, such as a family
+chat or a private chat with you: it joins when someone on the helper list
+invites it, and declines everyone else.
+
+**Who it listens to:** only people on the helper list, for the permissions
+they have, from verified sessions and in encrypted rooms. Anyone else who
+asks gets a polite no.
+
 ## Resetting passwords
 
-In the Password helpers room:
-
-- `!help` lists what you're allowed to do.
-- `!reset-password @name` gives that person a new password. You can type
+- `help` lists what you're allowed to do.
+- `reset-password @name` gives that person a new password. You can type
   the username or pick the person from the mention list. The bot replies
   with the new password; pass it on privately (in person, or a message they
   can read without signing in). The message is deleted after
   `password_message_minutes`. The person's other signed-in devices stay
   signed in, and they can change the password afterwards (Element → All
   settings → Account).
+
+New passwords are only posted where everyone may see them: the Password
+helpers room, or another encrypted room whose members (including invited
+ones) can all reset passwords, such as a private chat with the bot. Asked
+anywhere else, the bot says so and posts nothing.
 
 The bot refuses to reset:
 
@@ -88,19 +108,20 @@ random key of at least 16 characters (a password manager can generate one),
 set it as `helper_bot_key` in Minecraft Bedrock and as `minecraft_key` here,
 and restart both.
 
-In the Minecraft helpers room, use the player's Xbox gamertag:
+In any room with the bot, use the player's Xbox gamertag:
 
-- `!minecraft add Gamertag` lets them join the server, straight away.
-- `!minecraft op Gamertag` makes them an operator.
-- `!minecraft member Gamertag` makes an operator a normal player again.
-- `!minecraft remove Gamertag` takes them off the server (and kicks them if
-  they're on).
-- `!minecraft list` shows who's been added from chat, and who hasn't joined
-  yet.
+- `add Gamertag` lets them join the server, straight away.
+- `op Gamertag` makes them an operator.
+- `member Gamertag` makes an operator a normal player again.
+- `remove Gamertag` takes them off the server (and kicks them if they're
+  on).
+- `list` shows who's been added from chat, and who hasn't joined yet.
+
+For example "@Helper add Steve". (`!minecraft add Steve` works too.)
 
 A gamertag is all you need: the Minecraft add-on learns the player's Xbox ID
 from the server log the first time they join. Bedrock stores operators by
-Xbox ID, so `!minecraft op` for someone who hasn't joined yet takes effect
+Xbox ID, so `op` for someone who hasn't joined yet takes effect
 the first time they do. Players already on the allowlist (for example
 from before) aren't affected.
 
