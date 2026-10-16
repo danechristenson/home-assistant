@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"log"
 	"net/url"
 	"os"
@@ -726,10 +727,14 @@ func (b *Bot) handle(evt *event.Event) {
 		switch {
 		case !permissions.ResetPasswords:
 			err = refuse("You don't have permission to reset passwords.")
-		case !b.private(room):
-			err = refuse("I only post new passwords in the Password helpers room (or a private chat with me), where everyone may see them. Ask me there.")
+		case b.private(room):
+			err = b.reset(evt.Sender, room, room, content, words[1:])
+		case b.state.Rooms["passwords"] != "":
+			// Asked somewhere others could read it: do the reset, but post the
+			// password in the Password helpers room and only say "done" here
+			err = b.reset(evt.Sender, room, b.state.Rooms["passwords"], content, words[1:])
 		default:
-			err = b.reset(evt.Sender, room, content, words[1:])
+			err = refuse("I only post new passwords in a room where everyone may see them, such as a private chat with me. Ask me there.")
 		}
 	case command == "minecraft" || command == "mc":
 		err = b.minecraft(evt.Sender, room, words[1:])
@@ -760,7 +765,7 @@ func (b *Bot) help(permissions Permissions, room id.RoomID) {
 	}
 	if permissions.ResetPasswords {
 		lines = append(lines, fmt.Sprintf("Passwords: reset-password @name — a new password for someone who forgot theirs. "+
-			"Only in the Password helpers room or a private chat with me; the message deletes itself after %d minutes.", b.options.MessageMinutes))
+			"Asked in a shared room, I post it in the Password helpers room instead and mention you there; it deletes itself after %d minutes.", b.options.MessageMinutes))
 	}
 	if !permissions.Minecraft && !permissions.ResetPasswords {
 		lines = append(lines, "You don't have any permissions yet. The server admin can give you some in the Matrix Helper Bot settings.")
@@ -815,7 +820,10 @@ func (b *Bot) target(content *event.MessageEventContent, words []string) (id.Use
 	return id.UserID(user), localpart, nil
 }
 
-func (b *Bot) reset(sender id.UserID, room id.RoomID, content *event.MessageEventContent, words []string) error {
+// reset gives someone a new password. It's posted in postIn, which is the
+// room it was asked in (askedIn) or, if that room isn't private, the Password
+// helpers room, with a mention of the person who asked.
+func (b *Bot) reset(sender id.UserID, askedIn, postIn id.RoomID, content *event.MessageEventContent, words []string) error {
 	if !b.helpers[sender].ResetPasswords {
 		return refuse("You don't have permission to reset passwords.")
 	}
@@ -856,13 +864,22 @@ func (b *Bot) reset(sender id.UserID, room id.RoomID, content *event.MessageEven
 	b.saveState()
 	b.mu.Unlock()
 	info("%s reset the password of %s", sender, user)
-	b.say(room, fmt.Sprintf("%s reset the password of %s.", sender, user))
-	sent := b.say(room, fmt.Sprintf("New password for %s: %s\nGive it to them privately. This message deletes itself in %d minutes. "+
-		"Their other signed-in devices stay signed in.", user, password, b.options.MessageMinutes))
+	var sent id.EventID
+	if postIn == askedIn {
+		b.say(postIn, fmt.Sprintf("%s reset the password of %s.", sender, user))
+		sent = b.say(postIn, fmt.Sprintf("New password for %s: %s\nGive it to them privately. This message deletes itself in %d minutes. "+
+			"Their other signed-in devices stay signed in.", user, password, b.options.MessageMinutes))
+	} else {
+		b.sayTo(postIn, sender, fmt.Sprintf("you asked in another room for a new password for %s.", user))
+		sent = b.sayTo(postIn, sender, fmt.Sprintf("new password for %s: %s\nGive it to them privately. This message deletes itself in %d minutes. "+
+			"Their other signed-in devices stay signed in.", user, password, b.options.MessageMinutes))
+		// Nothing about the account here: others in this room may read it
+		b.say(askedIn, "Done. I've put the new password in the Password helpers room for you.")
+	}
 	if sent != "" {
 		b.mu.Lock()
 		b.state.Redactions = append(b.state.Redactions, Redaction{
-			Room: room, Event: sent, Due: time.Now().Add(time.Duration(b.options.MessageMinutes) * time.Minute),
+			Room: postIn, Event: sent, Due: time.Now().Add(time.Duration(b.options.MessageMinutes) * time.Minute),
 		})
 		b.saveState()
 		b.mu.Unlock()
@@ -978,6 +995,23 @@ func (b *Bot) say(room id.RoomID, text string) id.EventID {
 	content := &event.MessageEventContent{MsgType: event.MsgNotice, Body: text}
 	if b.current != nil && b.current.RoomID == room {
 		content.RelatesTo = (&event.RelatesTo{}).SetReplyTo(b.current.ID)
+	}
+	resp, err := b.cli.SendMessageEvent(b.ctx, room, event.EventMessage, content)
+	if err != nil {
+		warn("Could not post in %s: %v", room, err)
+		return ""
+	}
+	return resp.EventID
+}
+
+// sayTo posts a notice that mentions someone, so they get a notification
+func (b *Bot) sayTo(room id.RoomID, user id.UserID, text string) id.EventID {
+	content := &event.MessageEventContent{
+		MsgType:       event.MsgNotice,
+		Body:          fmt.Sprintf("%s: %s", user, text),
+		Format:        event.FormatHTML,
+		FormattedBody: fmt.Sprintf(`<a href="https://matrix.to/#/%s">%s</a>: %s`, user, html.EscapeString(user.String()), strings.ReplaceAll(html.EscapeString(text), "\n", "<br>")),
+		Mentions:      &event.Mentions{UserIDs: []id.UserID{user}},
 	}
 	resp, err := b.cli.SendMessageEvent(b.ctx, room, event.EventMessage, content)
 	if err != nil {

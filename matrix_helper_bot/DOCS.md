@@ -5,8 +5,8 @@ onto your Minecraft server, from chat, without making them admins.
 
 Talk to it like a person in any encrypted room it's in: "@Helper add
 Steve" in your family's Minecraft chat. It only does what the people you
-list are allowed to do, and only posts new passwords where everyone in the
-room may see them.
+list are allowed to do; ask for a password reset in a shared room and the
+new password goes to the private Password helpers room instead.
 
 ## Do you need this?
 
@@ -87,10 +87,13 @@ asks gets a polite no.
   signed in, and they can change the password afterwards (Element → All
   settings → Account).
 
-New passwords are only posted where everyone may see them: the Password
-helpers room, or another encrypted room whose members (including invited
-ones) can all reset passwords, such as a private chat with the bot. Asked
-anywhere else, the bot says so and posts nothing.
+New passwords are only posted where everyone may see them. Ask in the
+Password helpers room, or in another encrypted room whose members (including
+invited ones) can all reset passwords, such as a private chat with the bot,
+and the password is posted right there. Ask in a shared room, such as a
+family chat, and the bot still resets it, but posts the password in the
+Password helpers room with a mention of you (so you get a notification)
+and only says "Done" in the shared room, without naming the account.
 
 The bot refuses to reset:
 

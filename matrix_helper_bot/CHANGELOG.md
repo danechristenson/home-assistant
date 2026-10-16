@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+- Ask for a password reset in a shared room (such as a family chat) and the
+  bot now does it, posting the new password in the Password helpers room
+  with a mention of you, and only "Done" in the shared room.
+
 ## 1.1.0
 
 - Talk to the bot in any encrypted room: start a message with its name

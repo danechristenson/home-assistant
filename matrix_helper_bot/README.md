@@ -13,8 +13,8 @@ lets trusted helpers do it too, without making them admins: they type
 helpers** room, and the bot posts a new password for them to pass on.
 
 - Talk to it in any encrypted room it's invited to: "@Helper add Steve"
-- You list each helper and what they may do; passwords only go where
-  everyone may see them
+- You list each helper and what they may do; new passwords never appear in
+  shared rooms (they go to the private Password helpers room)
 - Minecraft: `add Gamertag`, `op`, `remove` (with the Minecraft Bedrock
   add-on from this repository)
 - It never resets server admins', helpers' or deactivated accounts
