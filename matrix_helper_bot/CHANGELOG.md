@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+- Fix: saving the configuration failed with "expected a URL" while the
+  optional `matrix_url` and `minecraft_url` were empty (their default).
+
 ## 1.0.0
 
 - First release: helpers can reset forgotten passwords with

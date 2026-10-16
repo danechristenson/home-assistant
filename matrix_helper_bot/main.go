@@ -151,6 +151,15 @@ func main() {
 		options.MessageMinutes = 10
 	}
 	options.Username = strings.SplitN(strings.TrimPrefix(strings.ToLower(strings.TrimSpace(options.Username)), "@"), ":", 2)[0]
+	// Empty means "find it automatically"; Home Assistant's url type rejects
+	// empty values, so these are plain strings in the schema and checked here
+	options.MatrixURL = strings.TrimSpace(options.MatrixURL)
+	options.MinecraftURL = strings.TrimSpace(options.MinecraftURL)
+	for name, value := range map[string]string{"matrix_url": options.MatrixURL, "minecraft_url": options.MinecraftURL} {
+		if parsed, err := url.Parse(value); value != "" && (err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "") {
+			log.Fatalf("[ERROR] '%s' must be empty or an address like http://192.168.1.10:8008 (got '%s')", name, value)
+		}
+	}
 	if options.MatrixURL == "" {
 		options.MatrixURL = defaultMatrixURL()
 	}
