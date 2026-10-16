@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.9.1.12
+
+- Update Element Web v1.12.31 → v1.12.32.
+
 ## 26.9.1.11
 
 - Update Element Web v1.12.30 → v1.12.31.
