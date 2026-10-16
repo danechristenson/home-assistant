@@ -31,7 +31,22 @@ administrators). It shows:
 - the settings from the Configuration tab.
 
 You can add players, change their role and remove them there; changes apply
-at once. Settings are changed on the Configuration tab.
+at once.
+
+It also changes these while people are playing, without a restart:
+
+- **Game:** difficulty, "Only allowed players" and game rules: keep
+  inventory, show coordinates, player vs player, mob griefing, fire spreads,
+  TNT explodes, day and night, weather changes, mobs spawn, and the share of
+  players needed to sleep. Game rules are saved in the world; difficulty
+  and "Only allowed players" are also saved to the add-on's options, so a
+  restart keeps them.
+- **Quick actions:** make it day or night, clear the weather, send a message
+  to everyone playing, and kick someone who's online.
+
+Everything else (server name, world, game mode, cheats, player limits,
+distances, ports) is changed on the Configuration tab, and the add-on
+restarts to apply it. Bedrock can't change the game mode while running.
 
 ## Who can join
 

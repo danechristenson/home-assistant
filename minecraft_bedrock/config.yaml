@@ -1,5 +1,5 @@
 name: Minecraft Bedrock
-version: "2026.10.1.3"
+version: "2026.10.1.4"
 slug: minecraft_bedrock
 description: Minecraft Bedrock server for phones, tablets, consoles and Windows
 url: https://github.com/danechristenson/home-assistant/tree/main/minecraft_bedrock
@@ -16,6 +16,9 @@ ingress: true
 ingress_port: 8791
 panel_icon: mdi:minecraft
 panel_title: Minecraft
+# Lets the panel save difficulty and "Only allowed players" to the add-on's
+# own options (default role: only its own settings)
+hassio_api: true
 # Console commands (send-command) reach the server through stdin
 stdin: true
 # Read-only: worlds to import from /share/minecraft_bedrock_import

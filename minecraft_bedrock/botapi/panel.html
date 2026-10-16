@@ -48,6 +48,25 @@
     dl { grid-template-columns: 1fr; gap: 0; }
     dd { margin-bottom: 8px; }
   }
+  .actions-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .actions-row input { flex: 1 1 220px; min-width: 0; }
+  .rules { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 24px; }
+  .rule { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .rule .help { display: block; font-size: 0.82rem; color: var(--muted); }
+  .rule input[type=number] { width: 80px; }
+  .switch { position: relative; width: 44px; height: 24px; flex: none; }
+  .switch input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: absolute; z-index: 1; }
+  .switch span { position: absolute; inset: 0; border-radius: 999px; background: var(--line); }
+  .ready .switch span { transition: background 0.15s; }
+  .switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+  .ready .switch span::after { transition: transform 0.15s; }
+  .switch input:checked + span { background: var(--accent); }
+  .switch input:checked + span::after { transform: translateX(20px); }
+  .switch input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .switch input:disabled + span { opacity: 0.5; }
+  .top-settings { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-bottom: 8px; }
+  .top-settings label { display: flex; align-items: center; gap: 10px; }
+  .done { color: var(--accent); }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -55,6 +74,21 @@
 <main>
   <h1 id="title">Minecraft</h1>
   <div class="status" id="status"><span class="pill off">Loading…</span></div>
+  <p class="error" id="error" role="alert" hidden></p>
+
+  <section>
+    <h2>Quick actions</h2>
+    <div class="actions-row">
+      <button data-action="day">Make it day</button>
+      <button data-action="night">Make it night</button>
+      <button data-action="clear">Clear the weather</button>
+    </div>
+    <form id="say" class="actions-row">
+      <input id="say-text" placeholder="Message everyone who's playing" maxlength="200" autocomplete="off">
+      <button type="submit">Send</button>
+    </form>
+    <p class="note" id="action-done" hidden></p>
+  </section>
 
   <section>
     <h2>Players</h2>
@@ -73,15 +107,33 @@
       </select>
       <button class="primary" type="submit">Add player</button>
     </form>
-    <p class="error" id="error" hidden></p>
     <p class="note">Members can play and build, visitors can only look around, operators can use commands
       (with cheats allowed). A role chosen before someone's first join applies when they first connect.</p>
   </section>
 
   <section>
+    <h2>Game</h2>
+    <div class="top-settings">
+      <label>Difficulty
+        <select id="difficulty">
+          <option value="peaceful">Peaceful</option>
+          <option value="easy">Easy</option>
+          <option value="normal">Normal</option>
+          <option value="hard">Hard</option>
+        </select>
+      </label>
+      <label><span class="switch"><input type="checkbox" id="allowlist"><span></span></span> Only allowed players</label>
+    </div>
+    <div class="rules" id="rules"></div>
+    <p class="note" id="rules-note">These change straight away, while people are playing. Game rules are saved in the world;
+      difficulty and "Only allowed players" are also saved to the add-on's settings.</p>
+  </section>
+
+  <section>
     <h2>Settings</h2>
     <dl id="settings"></dl>
-    <p class="note">Change these on the add-on's Configuration tab (Settings → Add-ons → Minecraft Bedrock).</p>
+    <p class="note">Change these on the add-on's Configuration tab (Settings → Add-ons → Minecraft Bedrock); the
+      add-on restarts to apply them. Game mode can only change there (Bedrock can't change it while running).</p>
   </section>
 </main>
 <script>
@@ -180,6 +232,13 @@
       const when = el("td", ago(p.lastSeen), "when");
       const from = el("td", sourceNames[p.source] ?? "Before", "from note");
       const actions = el("td", undefined, "actions");
+      if (p.online) {
+        const kick = el("button", "Kick");
+        kick.onclick = () => {
+          if (confirm(`Kick ${p.name} out of the game? They can join again.`)) act({ action: "kick", text: p.name }, `Kicked ${p.name}.`);
+        };
+        actions.append(kick);
+      }
       const remove = el("button", "Remove", "remove");
       remove.onclick = () => {
         if (confirm(`Remove ${p.name}? They'll be kicked if they're playing.`)) update({ name: p.name }, "api/players/remove");
@@ -188,6 +247,45 @@
       row.append(name, roleCell, when, from, actions);
       body.append(row);
     }
+
+    const isRunning = state.server.running;
+    $("difficulty").value = s.difficulty || "normal";
+    $("difficulty").disabled = !isRunning;
+    $("allowlist").checked = !!s.allow_list;
+    $("allowlist").disabled = !isRunning;
+    const rules = $("rules");
+    rules.replaceChildren();
+    for (const rule of state.ruleList || []) {
+      const current = state.rules ? state.rules[rule.name] : undefined;
+      const row = el("div", undefined, "rule");
+      const text = el("label", rule.label);
+      text.append(el("span", rule.help, "help"));
+      let input;
+      if (rule.max) {
+        input = document.createElement("input");
+        input.type = "number"; input.min = rule.min ?? 0; input.max = rule.max;
+        input.value = current ?? "";
+        input.onchange = () => change("api/gamerule", { rule: rule.name, value: Number(input.value) });
+        row.append(text, input);
+      } else {
+        const wrap = el("span", undefined, "switch");
+        input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = current === true;
+        input.onchange = () => change("api/gamerule", { rule: rule.name, value: input.checked });
+        wrap.append(input, el("span"));
+        row.append(text, wrap);
+      }
+      input.id = `rule-${rule.name}`;
+      text.htmlFor = input.id;
+      input.disabled = !state.rules;
+      rules.append(row);
+    }
+    $("rules-note").hidden = false;
+    $("rules-note").textContent = isRunning
+      ? "These change straight away, while people are playing. Game rules are saved in the world; difficulty and \"Only allowed players\" are also saved to the add-on's settings."
+      : "The server isn't running, so these can't change right now.";
+    for (const button of document.querySelectorAll("[data-action], #say button")) button.disabled = !isRunning;
 
     const settings = $("settings");
     settings.replaceChildren();
@@ -207,9 +305,34 @@
     }
   }
 
+  async function change(path, body) {
+    showError("");
+    try {
+      render(await call(path, body));
+    } catch (e) {
+      showError(e.message);
+      load();
+    }
+  }
+
+  async function act(body, done) {
+    showError("");
+    try {
+      render(await call("api/action", body));
+      $("action-done").textContent = done;
+      $("action-done").hidden = false;
+      setTimeout(() => { $("action-done").hidden = true; }, 4000);
+    } catch (e) {
+      showError(e.message);
+    }
+  }
+
   async function load() {
     try {
       render(await call("api/state"));
+      // Animate switches only after they show their first real values
+      // (two frames, so the first values are drawn without animating)
+      requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.add("ready")));
     } catch (e) {
       showError(`Couldn't load the server state: ${e.message}`);
     }
@@ -222,6 +345,24 @@
     await update({ name: $("add-name").value.trim(), role: $("add-role").value }, "api/players");
     if ($("error").hidden) $("add-name").value = "";
     button.disabled = false;
+  };
+
+  $("difficulty").onchange = () => change("api/difficulty", { value: $("difficulty").value });
+  $("allowlist").onchange = () => {
+    const on = $("allowlist").checked;
+    if (!on && !confirm("Let anyone who finds the server join?")) { $("allowlist").checked = true; return; }
+    change("api/allowlist", { on });
+  };
+  const doneText = { day: "It's day now.", night: "It's night now.", clear: "The weather is clear." };
+  for (const button of document.querySelectorAll("[data-action]")) {
+    button.onclick = () => act({ action: button.dataset.action }, doneText[button.dataset.action]);
+  }
+  $("say").onsubmit = async (event) => {
+    event.preventDefault();
+    const text = $("say-text").value.trim();
+    if (!text) return;
+    await act({ action: "say", text }, "Message sent.");
+    if ($("error").hidden) $("say-text").value = "";
   };
 
   load();

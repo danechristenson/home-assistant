@@ -17,9 +17,18 @@ const testKey = "0123456789abcdef0123"
 func setup(t *testing.T) (http.Handler, func() []string) {
 	t.Helper()
 	dataDir = t.TempDir()
+	live.Lock()
+	live.running, live.online = false, map[string]bool{}
+	live.Unlock()
 	commands := filepath.Join(dataDir, "commands")
 	script := filepath.Join(dataDir, "send-command")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\necho \"$*\" >> "+commands+"\n"), 0o755); err != nil {
+	os.MkdirAll(filepath.Join(dataDir, "run"), 0o755)
+	// Like the real console: the command is recorded, and "gamerule" answers
+	// in the server log with the current rules
+	fake := "#!/bin/sh\necho \"$*\" >> " + commands + "\n" +
+		"[ \"$*\" = gamerule ] && echo \"[INFO] commandBlockOutput = true, keepInventory = false, pvp = true, doFireTick = true, playersSleepingPercentage = 100, randomTickSpeed = 1\" >> " +
+		filepath.Join(dataDir, "run", "bedrock.log") + "\nexit 0\n"
+	if err := os.WriteFile(script, []byte(fake), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	sendCommand = script

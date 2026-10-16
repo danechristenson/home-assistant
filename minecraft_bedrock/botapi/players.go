@@ -213,10 +213,12 @@ func contains(list []string, value string) bool {
 
 // console sends a command to the running server; if it isn't running, the
 // files are read at the next start anyway
-func console(command string) {
+func console(command string) error {
 	if err := exec.Command(sendCommand, command).Run(); err != nil {
 		log.Printf("[WARN] Could not send '%s' to the server (not running?): %v", strings.Fields(command)[0], err)
+		return apiError{502, "The server didn't take the command. Is it running?"}
 	}
+	return nil
 }
 
 // setPlayer adds a player or changes their role. role "" keeps an existing

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"sort"
@@ -97,6 +98,15 @@ func panelState() map[string]any {
 	}
 }
 
+// fullState adds what the server says about its game rules (asking takes a
+// moment, so only the page's full refreshes include it)
+func fullState() map[string]any {
+	state := panelState()
+	state["rules"] = readRules()
+	state["ruleList"] = gameRules
+	return state
+}
+
 func panelHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
@@ -105,6 +115,68 @@ func panelHandler() http.Handler {
 		_, _ = w.Write(panelPage)
 	})
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, r *http.Request) {
+		reply(w, http.StatusOK, fullState())
+	})
+	mux.HandleFunc("POST /api/gamerule", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Rule  string `json:"rule"`
+			Value any    `json:"value"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&body); err != nil {
+			refuse(w, http.StatusBadRequest, "Bad request.")
+			return
+		}
+		if err := setRule(body.Rule, body.Value); err != nil {
+			fail(w, err)
+			return
+		}
+		log.Printf("[INFO] Panel: game rule %s set to %v", body.Rule, body.Value)
+		reply(w, http.StatusOK, fullState())
+	})
+	mux.HandleFunc("POST /api/difficulty", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Value string `json:"value"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&body); err != nil {
+			refuse(w, http.StatusBadRequest, "Bad request.")
+			return
+		}
+		if err := setDifficulty(strings.ToLower(body.Value)); err != nil {
+			fail(w, err)
+			return
+		}
+		log.Printf("[INFO] Panel: difficulty set to %s", body.Value)
+		reply(w, http.StatusOK, fullState())
+	})
+	mux.HandleFunc("POST /api/allowlist", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			On bool `json:"on"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&body); err != nil {
+			refuse(w, http.StatusBadRequest, "Bad request.")
+			return
+		}
+		if err := setAllowlistOn(body.On); err != nil {
+			fail(w, err)
+			return
+		}
+		log.Printf("[INFO] Panel: only allowed players turned %s", map[bool]string{true: "on", false: "off"}[body.On])
+		reply(w, http.StatusOK, fullState())
+	})
+	mux.HandleFunc("POST /api/action", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Action string `json:"action"`
+			Text   string `json:"text"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 8192)).Decode(&body); err != nil {
+			refuse(w, http.StatusBadRequest, "Bad request.")
+			return
+		}
+		if err := action(body.Action, body.Text); err != nil {
+			fail(w, err)
+			return
+		}
+		log.Printf("[INFO] Panel: %s", body.Action)
 		reply(w, http.StatusOK, panelState())
 	})
 	mux.HandleFunc("POST /api/players", func(w http.ResponseWriter, r *http.Request) {
@@ -116,7 +188,7 @@ func panelHandler() http.Handler {
 			fail(w, err)
 			return
 		}
-		reply(w, http.StatusOK, panelState())
+		reply(w, http.StatusOK, fullState())
 	})
 	mux.HandleFunc("POST /api/players/remove", func(w http.ResponseWriter, r *http.Request) {
 		var body playerRequest
@@ -132,7 +204,7 @@ func panelHandler() http.Handler {
 			fail(w, err)
 			return
 		}
-		reply(w, http.StatusOK, panelState())
+		reply(w, http.StatusOK, fullState())
 	})
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

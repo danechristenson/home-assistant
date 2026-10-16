@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026.10.1.4
+
+- The Minecraft panel changes the game while people play, without a
+  restart: difficulty, "Only allowed players", and game rules (keep
+  inventory, show coordinates, PvP, mob griefing, fire, TNT, day and night,
+  weather, mob spawning, players needed to sleep). Difficulty and the
+  allowlist switch are saved to the add-on's options too.
+- Quick actions: make it day or night, clear the weather, message everyone,
+  kick someone who's online.
+
 ## 2026.10.1.3
 
 - Only kick a removed player if they're online (kicking someone offline

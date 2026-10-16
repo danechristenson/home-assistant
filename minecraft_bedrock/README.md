@@ -10,7 +10,8 @@ image, with its settings on the Home Assistant Configuration tab.
 
 - Only allowed players can join (an allowlist), on by default
 - A **Minecraft** sidebar panel: who's online, every allowed player and their
-  role, and the settings; add, re-role and remove players there
+  role, game rules (keep inventory, PvP, mob griefing…), difficulty, and
+  quick actions (day, clear weather, message everyone), all live
 - Works with the [Matrix Helper Bot][bot]: "@Helper add Steve as operator"
   in an encrypted chat room
 - Follows Mojang's Bedrock releases through this repository's daily updates,
