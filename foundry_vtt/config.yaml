@@ -1,0 +1,39 @@
+name: Foundry VTT
+version: "1.0.0"
+slug: foundry_vtt
+description: Foundry Virtual Tabletop, installed from your own license
+url: https://github.com/danechristenson/home-assistant/tree/main/foundry_vtt
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+webui: http://[HOST]:[PORT:30000]/
+watchdog: tcp://[HOST]:[PORT:30000]
+# Gives Foundry time to close the open world cleanly
+timeout: 30
+# Lets the add-on clear the download link from its own options once it has
+# installed from it (default role: only its own settings)
+hassio_api: true
+# Foundry's data folder (Config, Data, Logs) at /config, so maps, tokens and
+# modules can be copied in over Samba (addon_configs/<id>_foundry_vtt)
+map:
+  - addon_config:rw
+ports:
+  30000/tcp: 30000
+ports_description:
+  30000/tcp: Foundry VTT (web)
+# A half-finished download or install
+backup_exclude:
+  - download.zip
+  - install.new
+options:
+  download_url: ""
+  hostname: ""
+  proxy_ssl: false
+  world: ""
+schema:
+  download_url: str?
+  hostname: str?
+  proxy_ssl: bool
+  world: str?

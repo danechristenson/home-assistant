@@ -2,14 +2,15 @@
 """Bump the Matrix add-ons to the latest upstream releases.
 
 Checks Continuwuity, Element Web, qrcode-generator, coturn, LiveKit,
-lk-jwt-service, mautrix-go and Go for the helper bot, and the itzg image and
-Mojang's Bedrock server for Minecraft. For each add-on
+lk-jwt-service, mautrix-go and Go for the helper bot, the itzg image and
+Mojang's Bedrock server for Minecraft, and Node.js for Foundry VTT. For each add-on
 whose dependencies changed, updates build.yaml, the add-on version and the
 changelog, then prints the changed add-on folders (one per line) for the
 workflow to build and test.
 
-qrcode-generator and coturn only update within their current major version:
-qrcode-generator 2.x moved its files and coturn majors can change config, so
+qrcode-generator, coturn and Node.js only update within their current major
+version: qrcode-generator 2.x moved its files, coturn majors can change
+config, and each Foundry VTT generation needs a particular Node.js major, so
 those need a deliberate manual upgrade.
 
 Versions must always increase for Home Assistant (AwesomeVersion): a new
@@ -303,6 +304,36 @@ def update_minecraft():
     return True
 
 
+def latest_node(current):
+    """The newest node:<x.y.z>-trixie-slim image in the current major version."""
+    major = version_key(current)[0]
+    tags = get_json(f"https://hub.docker.com/v2/repositories/library/node/tags?page_size=100&name={major}.&ordering=last_updated")
+    versions = [m.group(1) for t in tags["results"] if (m := re.fullmatch(r"(\d+\.\d+\.\d+)-trixie-slim", t["name"]))]
+    return same_major(versions, current)
+
+
+def update_foundry():
+    """Only Node.js is in the image (each user installs Foundry from their
+    own license), so a Node.js update bumps the add-on's patch version."""
+    folder = ROOT / "foundry_vtt"
+    build = folder / "build.yaml"
+    text = build.read_text()
+    current = read_value(text, r"node:([\d.]+)-trixie-slim$")
+    latest = latest_node(current)
+    if version_key(latest) <= version_key(current):
+        return False
+    build.write_text(text.replace(f"node:{current}-trixie-slim", f"node:{latest}-trixie-slim"))
+
+    addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
+    parts = addon_version.split(".")
+    parts[2] = str(int(parts[2]) + 1)
+    new_version = ".".join(parts)
+    set_addon_version("foundry_vtt", new_version)
+    add_changelog_entry("foundry_vtt", new_version, [f"Update Node.js {current} → {latest}."])
+    print(f"foundry_vtt: {addon_version} -> {new_version} (node)", file=sys.stderr)
+    return True
+
+
 def os_ids():
     import os
     return f"{os.getuid()}:{os.getgid()}"
@@ -310,6 +341,8 @@ def os_ids():
 
 def main():
     changed = []
+    if update_foundry():
+        changed.append("foundry_vtt")
     if update_matrix():
         changed.append("matrix")
     if update_relay():

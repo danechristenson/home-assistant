@@ -1,0 +1,26 @@
+configuration:
+  download_url:
+    name: Download link
+    description: >-
+      Installs or reinstalls Foundry VTT. On foundryvtt.com, open your
+      Purchased Licenses and press the link icon next to the Node.js download
+      (a timed link, valid for 5 minutes). Paste it here, save, and start or
+      restart the add-on. It's cleared once used.
+  hostname:
+    name: Address players use
+    description: >-
+      Shown in Foundry's invitation links, e.g. foundry.example.com when it's
+      behind a reverse proxy. Empty: your Home Assistant's IP address.
+  proxy_ssl:
+    name: Behind an HTTPS reverse proxy
+    description: >-
+      Turn on when players reach Foundry through a reverse proxy with HTTPS
+      on port 443 (e.g. NGINX Proxy Manager). Invitation links then use
+      https and port 443, and voice and video chat work.
+  world:
+    name: Open this world on start
+    description: >-
+      The world's ID (its folder name, shown under Edit World in Foundry's
+      Setup). Empty: start at the Setup screen.
+network:
+  30000/tcp: Foundry VTT (web)

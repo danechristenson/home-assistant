@@ -23,6 +23,7 @@ Or click the button above to add the repository in one step.
 
 | Add-on | Description |
 | ------ | ----------- |
+| [Foundry VTT](./foundry_vtt) | Foundry Virtual Tabletop, installed from your own license with a timed download link. |
 | [Matrix](./matrix) | Private, encrypted group chat on Home Assistant, using the Element app |
 | [Matrix Group Calls](./matrix_group_calls) | Companion to Matrix: group voice and video calls with screen sharing. Optional; needs a reverse proxy and router port forwards. |
 | [Matrix Helper Bot](./matrix_helper_bot) | Companion to Matrix: lets people you choose reset forgotten passwords and manage Minecraft players from encrypted chat rooms. Optional; no ports. |
@@ -38,7 +39,7 @@ behind it. A mistake can expose your home network, so:
 
 **Prefer a reverse proxy for web traffic.** Run one reverse proxy (such as
 the NGINX Proxy Manager add-on) on port 443 with HTTPS, and forward only 443
-to it. Matrix goes behind it; its docs explain how.
+to it. Matrix and Foundry VTT go behind it; their docs explain how.
 
 **Never forward these:**
 
@@ -46,6 +47,7 @@ to it. Matrix goes behind it; its docs explain how.
 | ---- | --- |
 | 8008 (Matrix) | Unencrypted unless the add-on's own HTTPS is on. Use the reverse proxy instead. |
 | 8123 (Home Assistant) | Your whole home's controls. Use a VPN (many routers, e.g. GL.iNet, have WireGuard built in) or Home Assistant Cloud. If you must expose it, put it behind the proxy and turn on multi-factor authentication for every user. |
+| 30000 (Foundry VTT) | Unencrypted. Use the reverse proxy instead (its docs explain how). |
 | 7880, 7883 (Matrix Group Calls) | Reached through the reverse proxy over HTTPS, never directly. |
 | 81 (NGINX Proxy Manager admin) | Controls all your proxy hosts and certificates. |
 | 22, 445, 139, 1883 and other admin or file-sharing ports | SSH, Samba and MQTT are for your home network only. |

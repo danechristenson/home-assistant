@@ -102,6 +102,39 @@ JSON
         docker exec "$NAME" grep -qx "transport=nethernet" /data/server.properties || fail "settings not applied"
         docker exec "$NAME" curl -fsS http://127.0.0.1:8791/api/state | grep -q '"players"' || fail "panel did not respond"
         ;;
+    foundry_vtt)
+        # Without Foundry installed it must stop and say how to install it
+        echo '{"download_url": "", "hostname": "", "proxy_ssl": false, "world": ""}' > "$DATA/options.json"
+        mkdir -p "$DATA/config"
+        docker run --name "$NAME" -v "$DATA:/data:z" -v "$DATA/config:/config:z" "$IMAGE" > /dev/null 2>&1 || true
+        docker logs "$NAME" 2>&1 | grep -q "Paste it into 'Download link'" || fail "add-on did not ask for a download link"
+        docker rm -f "$NAME" > /dev/null
+        # A stand-in for Foundry's Linux download (main.mjs under resources/app)
+        # that records how it was started and answers on port 30000
+        mkdir -p "$DATA/fake/resources/app"
+        echo '{"release": {"generation": 14, "build": 999}}' > "$DATA/fake/resources/app/package.json"
+        cat > "$DATA/fake/resources/app/main.mjs" <<'JS'
+import fs from "node:fs";
+import http from "node:http";
+fs.writeFileSync("/config/smoke.json", JSON.stringify({uid: process.getuid(), args: process.argv.slice(2)}));
+http.createServer((request, response) => response.end("fake foundry")).listen(30000);
+JS
+        (cd "$DATA/fake" && python3 -m zipfile -c "$DATA/fake.zip" resources)
+        echo '{"download_url": "file:///data/fake.zip", "hostname": "vtt.example.com", "proxy_ssl": true, "world": "smoke-world"}' > "$DATA/options.json"
+        docker run -d --name "$NAME" -p 13000:30000 -v "$DATA:/data:z" -v "$DATA/config:/config:z" "$IMAGE" > /dev/null
+        wait_for http://localhost:13000/ || fail "Foundry did not start"
+        docker logs "$NAME" 2>&1 | grep -q "Starting Foundry VTT 14.999" || fail "version not logged"
+        docker exec "$NAME" jq -e '.uid != 0 and (.args | index("--dataPath=/config")) and (.args | index("--world=smoke-world")) and (.args | index("--noupnp"))' /config/smoke.json > /dev/null \
+            || fail "Foundry not started as expected: $(docker exec "$NAME" cat /config/smoke.json)"
+        docker exec "$NAME" jq -e '.hostname == "vtt.example.com" and .proxySSL == true and .proxyPort == 443 and .upnp == false' /config/Config/options.json > /dev/null \
+            || fail "options.json not written"
+        # An expired link must not break the existing install
+        docker rm -f "$NAME" > /dev/null
+        echo '{"download_url": "file:///data/expired.zip", "hostname": "", "proxy_ssl": false, "world": ""}' > "$DATA/options.json"
+        docker run -d --name "$NAME" -p 13000:30000 -v "$DATA:/data:z" -v "$DATA/config:/config:z" "$IMAGE" > /dev/null
+        wait_for http://localhost:13000/ || fail "existing Foundry did not start after a failed download"
+        docker logs "$NAME" 2>&1 | grep -q "Starting the Foundry VTT that was already installed" || fail "failed download not reported"
+        ;;
     *)
         fail "no smoke test for $ADDON"
         ;;
