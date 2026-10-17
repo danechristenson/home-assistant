@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- Fixed: bad image
+
 ## 1.0.0
 
 - First release: Node.js 24.22.0. Installs Foundry VTT (Node.js or Linux

@@ -111,7 +111,8 @@ CONFIG=$FOUNDRY_DATA/Config/options.json
 PROXY_SSL=false
 [[ "$(opt proxy_ssl)" == "true" ]] && PROXY_SSL=true
 jq --arg hostname "$(opt hostname)" --argjson proxy_ssl "$PROXY_SSL" '
-    .port = 30000
+    .dataPath = "/config"
+    | .port = 30000
     | .upnp = false
     | .hostname = (if $hostname == "" then null else $hostname end)
     | .proxySSL = $proxy_ssl

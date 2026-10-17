@@ -25,6 +25,12 @@ fail() {
 BUILD_ARGS=$(python3 - "$ROOT/$ADDON/build.yaml" <<'EOF'
 import re, sys
 text = open(sys.argv[1]).read()
+# The Supervisor's pattern for build_from: anything else is silently replaced
+# by its own base image (e.g. "node:24" needs to be "library/node:24")
+image = re.compile(r"^([a-zA-Z\-\.:\d{}]+/)*?([\-\w{}]+)/([\-\w{}]+)(:[\.\-\w{}]+)?$")
+for arch, base in re.findall(r"^  (\w+): (\S+)$", text.split("build_from:", 1)[1].split("\n\n")[0].split("args:")[0], re.M):
+    if not image.match(base):
+        sys.exit(f"FAIL: build_from {arch} '{base}' is not accepted by the Supervisor")
 args = [f"BUILD_FROM={re.search(r'^  amd64: (\S+)$', text, re.M).group(1)}"]
 section = text.split("args:", 1)[1] if "args:" in text else ""
 args += [f"{k}={v.strip(chr(34))}" for k, v in re.findall(r"^  (\w+): (\S+)$", section, re.M)]
@@ -126,7 +132,7 @@ JS
         docker logs "$NAME" 2>&1 | grep -q "Starting Foundry VTT 14.999" || fail "version not logged"
         docker exec "$NAME" jq -e '.uid != 0 and (.args | index("--dataPath=/config")) and (.args | index("--world=smoke-world")) and (.args | index("--noupnp"))' /config/smoke.json > /dev/null \
             || fail "Foundry not started as expected: $(docker exec "$NAME" cat /config/smoke.json)"
-        docker exec "$NAME" jq -e '.hostname == "vtt.example.com" and .proxySSL == true and .proxyPort == 443 and .upnp == false' /config/Config/options.json > /dev/null \
+        docker exec "$NAME" jq -e '.hostname == "vtt.example.com" and .proxySSL == true and .proxyPort == 443 and .upnp == false and .dataPath == "/config"' /config/Config/options.json > /dev/null \
             || fail "options.json not written"
         # An expired link must not break the existing install
         docker rm -f "$NAME" > /dev/null
