@@ -46,8 +46,13 @@ Everything there is in Home Assistant backups, and so is Foundry itself (a
 restore doesn't need a new download link). Backups can get large if you keep
 a lot of maps and music.
 
-**Moving from another Foundry install?** Stop the add-on, copy your old
-`Data` folder's contents into this one's `Data` folder, and start it.
+**Moving from another Foundry install?** Install the add-on and Foundry
+first (see Setup), then stop the add-on. Copy your old `Data` and `Config`
+folders over this one's (not `Logs`), and start it. Your worlds, systems,
+modules, administrator password and settings come with them. Foundry then
+asks for your license key once more: a license is signed for the computer
+it runs on. Don't run the old install at the same time; a license hosts one
+game at a time.
 
 ## Updating Foundry
 
