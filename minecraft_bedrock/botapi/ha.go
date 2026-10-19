@@ -394,15 +394,20 @@ func entities(tracked []string, roster []rosterEntry) []entity {
 		{"button", "night", map[string]any{"name": "Make it night", "icon": "mdi:weather-night", "command_topic": topicCommand + "night"}, true},
 		{"button", "clear_weather", map[string]any{"name": "Clear the weather", "icon": "mdi:weather-cloudy-clock", "command_topic": topicCommand + "clear"}, true},
 		{"button", "kick_everyone", map[string]any{"name": "Kick everyone", "icon": "mdi:account-cancel", "command_topic": topicCommand + "kick_all"}, true},
-		{"text", "message", map[string]any{"name": "Message everyone", "icon": "mdi:message-text", "max": 200, "mode": "text", "command_topic": topicCommand + "say"}, true},
+		// Text boxes report an empty value with every state update (rather than none, which
+		// Home Assistant shows as unknown); it also clears the box once something is sent
+		{"text", "message", map[string]any{"name": "Message everyone", "icon": "mdi:message-text", "max": 200, "mode": "text",
+			"state_topic": topicState, "value_template": "{{ '' }}", "command_topic": topicCommand + "say"}, true},
 		{"button", "supper_start", map[string]any{"name": "Supper time", "icon": "mdi:silverware-fork-knife", "command_topic": topicCommand + "supper/start"}, true},
 		{"button", "supper_cancel", map[string]any{"name": "Cancel supper time", "icon": "mdi:cancel", "command_topic": topicCommand + "supper/cancel"}, false},
 		{"sensor", "supper", map[string]any{"name": "Supper time", "icon": "mdi:silverware-fork-knife",
 			"value_template":           "{% set s = value_json.supper %}{{ 'Off' if s.state == 'off' else ((s.minutes_left ~ ' min to go') if s.state == 'countdown' else 'Players kept out') }}",
 			"json_attributes_topic":    topicState,
 			"json_attributes_template": "{{ value_json.supper | tojson }}"}, false},
-		{"text", "add_player", map[string]any{"name": "Add player", "icon": "mdi:account-plus", "min": 1, "max": 24, "mode": "text",
-			"pattern": "^[A-Za-z0-9](?:[A-Za-z0-9]| [A-Za-z0-9]){0,15}(?:#[0-9]{1,5})?$", "command_topic": topicCommand + "add_player"}, false},
+		// The pattern allows empty too, as that's the box's own value (an empty entry is ignored)
+		{"text", "add_player", map[string]any{"name": "Add player", "icon": "mdi:account-plus", "max": 24, "mode": "text",
+			"pattern":     "^(?:[A-Za-z0-9](?:[A-Za-z0-9]| [A-Za-z0-9]){0,15}(?:#[0-9]{1,5})?)?$",
+			"state_topic": topicState, "value_template": "{{ '' }}", "command_topic": topicCommand + "add_player"}, false},
 	}
 	for _, player := range roster {
 		key := fmt.Sprintf("value_json.roster['%s']", player.Slug)
@@ -519,6 +524,8 @@ func handleCommand(msg mqttMessage) {
 		err = setDifficulty(strings.ToLower(payload))
 	case command == "day" || command == "night" || command == "clear":
 		err = action(command, "")
+	case (command == "say" || command == "add_player") && payload == "":
+		// an empty text box: nothing to send or add
 	case command == "say":
 		err = action("say", payload)
 	case command == "supper/start":

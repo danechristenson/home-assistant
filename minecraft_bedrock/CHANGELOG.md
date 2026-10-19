@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026.10.1.8
+
+- The **Message everyone** and **Add player** boxes have an empty value
+  instead of none, so Home Assistant no longer shows them as unknown (or
+  counts them as broken in health checks). Each box clears itself after
+  you send something; sending it empty does nothing.
+
 ## 2026.10.1.7
 
 - **Supper time**: a 5-minute countdown in the game, then the tracked

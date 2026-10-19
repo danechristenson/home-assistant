@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 )
@@ -135,6 +136,9 @@ func TestCommandsFromHomeAssistant(t *testing.T) {
 	before := len(commands())
 	handleCommand(mqttMessage{topic: topicCommand + "rule/randomTickSpeed", payload: []byte("100")})
 	handleCommand(mqttMessage{topic: topicCommand + "difficulty", payload: []byte("impossible")})
+	// The text boxes' own (empty) value sent back: nothing happens
+	handleCommand(mqttMessage{topic: topicCommand + "say", payload: []byte("")})
+	handleCommand(mqttMessage{topic: topicCommand + "add_player", payload: []byte(" ")})
 	for _, c := range commands()[before:] {
 		if c != "gamerule" { // only the rules refresh
 			t.Errorf("a bad command reached the console: %q", c)
@@ -159,6 +163,22 @@ func TestDiscoveryTemplates(t *testing.T) {
 		"supper_start", "supper_cancel", "supper", "add_player", "player_best_friend_role", "player_best_friend_remove"} {
 		if !seen[id] {
 			t.Errorf("missing entity %s", id)
+		}
+	}
+	// Text boxes have an (empty) state, so Home Assistant doesn't show them as unknown, and
+	// add_player's pattern accepts that empty state as well as gamertags
+	for _, e := range list {
+		if e.component != "text" {
+			continue
+		}
+		if e.config["state_topic"] != topicState || e.config["value_template"] != "{{ '' }}" {
+			t.Errorf("text %s has no empty state: %v", e.id, e.config)
+		}
+		if p, ok := e.config["pattern"].(string); ok {
+			re := regexp.MustCompile(p)
+			if !re.MatchString("") || !re.MatchString("Steve") || !re.MatchString("Cool Kid#1234") || re.MatchString("not a  tag!") {
+				t.Errorf("text %s pattern %q", e.id, p)
+			}
 		}
 	}
 }
