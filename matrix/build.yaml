@@ -3,4 +3,4 @@ build_from:
   aarch64: ghcr.io/continuwuity/continuwuity:v26.9.1
 args:
   ELEMENT_VERSION: v1.12.32
-  QRCODE_VERSION: 1.5.2
+  QRCODE_VERSION: 2.0.4

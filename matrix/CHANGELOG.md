@@ -1,5 +1,11 @@
 # Changelog
 
+## 26.9.1.15
+
+- Update qrcode-generator 1.5.2 → 2.0.4.
+  Version 2 moved its file (now `dist/qrcode.js`); the invite page's QR
+  codes are unchanged.
+
 ## 26.9.1.14
 
 - Update Alpine (Element Web build stage) 3.22 → 3.24.
