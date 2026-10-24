@@ -1,5 +1,5 @@
 name: Foundry VTT
-version: "1.0.3"
+version: "1.0.4"
 slug: foundry_vtt
 description: Foundry Virtual Tabletop, installed from your own license
 url: https://github.com/danechristenson/home-assistant/tree/main/foundry_vtt
