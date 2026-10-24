@@ -8,6 +8,9 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 IMAGE="smoke-$ADDON"
 NAME="smoke-$ADDON"
 DATA=$(mktemp -d)
+# Like Home Assistant's /data: an add-on's own user (e.g. Foundry's "node")
+# must be able to read it, whoever runs the test
+chmod 755 "$DATA"
 
 cleanup() {
     docker logs "$NAME" > "$DATA/container.log" 2>&1 || true
