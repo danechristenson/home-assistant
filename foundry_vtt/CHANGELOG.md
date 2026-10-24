@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4
+
+- Update Node.js 24.22.1 → 26.12.1.
+- New major version: check the upstream release notes before merging.
+
 ## 1.0.3
 
 - **Open web UI** goes to the **Address players use** (https when behind
