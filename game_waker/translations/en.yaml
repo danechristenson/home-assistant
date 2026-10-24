@@ -1,0 +1,7 @@
+configuration:
+  games:
+    name: Games
+    description: >-
+      Each game add-on to start when someone tries to join: its slug (in the
+      add-on page's address, e.g. 9f95fc58_valheim_steamcmd_server) and the
+      UDP ports players connect to (e.g. 2456-2457 for Valheim).

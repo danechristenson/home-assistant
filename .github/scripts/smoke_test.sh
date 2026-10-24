@@ -150,6 +150,59 @@ JS
         # No address set: Open web UI uses Home Assistant's own, port 30000
         open_web_ui | grep -q 'const url = "" ||' || fail "Open web UI without an address: $(open_web_ui)"
         ;;
+    game_waker)
+        # A stand-in Supervisor: the "smoke" game is stopped until something
+        # starts it; every request is written down
+        cat > "$DATA/supervisor.py" <<'PY'
+import http.server, json, sys
+state, log = "stopped", sys.argv[1]
+class Handler(http.server.BaseHTTPRequestHandler):
+    def reply(self, body):
+        data = json.dumps(body).encode()
+        self.send_response(200); self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data)
+    def do_GET(self):
+        self.reply({"result": "ok", "data": {"state": state} if self.path == "/addons/smoke/info" else {}})
+    def do_POST(self):
+        global state
+        body = self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode()
+        open(log, "a").write(f"POST {self.path} {body}\n")
+        if self.path == "/addons/smoke/start":
+            state = "started"
+        self.reply({"result": "ok", "data": {}})
+    def log_message(self, *args):
+        pass
+http.server.HTTPServer(("127.0.0.1", 18099), Handler).serve_forever()
+PY
+        python3 "$DATA/supervisor.py" "$DATA/requests.log" &
+        SUPERVISOR_PID=$!
+        trap 'kill $SUPERVISOR_PID 2>/dev/null || true; cleanup' EXIT
+        echo '{"games": [{"addon": "smoke", "udp_ports": "23456-23457"}]}' > "$DATA/options.json"
+        docker run -d --name "$NAME" --network host --cap-add NET_RAW -v "$DATA:/data:z" \
+            -e SUPERVISOR_URL=http://127.0.0.1:18099 -e SUPERVISOR_TOKEN=smoke -e LISTEN_SECONDS=5 "$IMAGE" > /dev/null
+        for _ in $(seq 1 15); do
+            docker logs "$NAME" 2>&1 | grep -q "starts when someone tries to join on UDP 23456-23457" && break
+            sleep 1
+        done
+        docker logs "$NAME" 2>&1 | grep -q "starts when someone tries to join" || fail "waker did not start watching"
+        sleep 2
+        send() { python3 -c "import socket, sys; s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.bind((sys.argv[1], 0)); s.sendto(b'join', (sys.argv[1], int(sys.argv[2])))" "$@"; }
+        # Home Assistant's own checks come from 127.0.0.1: they must not wake it
+        send 127.0.0.1 23457
+        sleep 4
+        ! grep -q "start" "$DATA/requests.log" 2>/dev/null || fail "a packet from 127.0.0.1 started the game"
+        # A player: a packet from the machine's own network address
+        HOST_IP=$(python3 -c "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.connect(('192.0.2.1', 9)); print(s.getsockname()[0])")
+        for _ in $(seq 1 10); do
+            send "$HOST_IP" 23456
+            grep -q "POST /addons/smoke/start" "$DATA/requests.log" 2>/dev/null && break
+            sleep 1
+        done
+        grep -q "POST /addons/smoke/start" "$DATA/requests.log" || fail "a player's packet did not start the game"
+        grep -q "POST /core/api/events/game_waker_wake .*\"from\":\"$HOST_IP\"" "$DATA/requests.log" \
+            || fail "no game_waker_wake event with the player's address: $(cat "$DATA/requests.log")"
+        docker logs "$NAME" 2>&1 | grep -q "smoke: $HOST_IP is trying to join; starting it" || fail "join not logged"
+        ;;
     *)
         fail "no smoke test for $ADDON"
         ;;

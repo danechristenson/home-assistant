@@ -24,6 +24,7 @@ Or click the button above to add the repository in one step.
 | Add-on | Description |
 | ------ | ----------- |
 | [Foundry VTT](./foundry_vtt) | Foundry Virtual Tabletop, installed from your own license with a timed download link. |
+| [Game Waker](./game_waker) | Starts a stopped game server add-on (such as Valheim) when someone tries to join, so idle games can be stopped. No ports. |
 | [Matrix](./matrix) | Private, encrypted group chat on Home Assistant, using the Element app |
 | [Matrix Group Calls](./matrix_group_calls) | Companion to Matrix: group voice and video calls with screen sharing. Optional; needs a reverse proxy and router port forwards. |
 | [Matrix Helper Bot](./matrix_helper_bot) | Companion to Matrix: lets people you choose reset forgotten passwords and manage Minecraft players from encrypted chat rooms. Optional; no ports. |
