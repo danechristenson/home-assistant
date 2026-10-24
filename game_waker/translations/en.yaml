@@ -2,6 +2,26 @@ configuration:
   games:
     name: Games
     description: >-
-      Each game add-on to start when someone tries to join: its slug (in the
-      add-on page's address, e.g. 9f95fc58_valheim_steamcmd_server) and the
-      UDP ports players connect to (e.g. 2456-2457 for Valheim).
+      Each game add-on to start when someone tries to join: a name for the
+      start page, its slug (in the add-on page's address, e.g.
+      9f95fc58_valheim_steamcmd_server), the UDP ports players connect to
+      (e.g. 2456-2457 for Valheim), optionally its Steam query port (2457 for
+      Valheim: the page then shows when it's ready and how many are playing)
+      and the address players join at, shown on the page.
+  home_networks:
+    name: Home networks
+    description: >-
+      Joining from these always wakes a game: your home network and your VPN.
+      The default covers the usual private networks.
+  wake_from:
+    name: Other addresses
+    description: >-
+      More IP addresses or networks that may wake a game by joining, such as a
+      friend's home. Addresses that press Start on the start page are
+      remembered without being listed here.
+  web_port:
+    name: Start page port
+    description: >-
+      The start page (a Start button and each game's state) listens here. Put
+      it behind your reverse proxy, e.g. valheim.example.com; don't forward it
+      on your router.

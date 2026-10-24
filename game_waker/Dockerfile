@@ -3,9 +3,9 @@
 # default here; a default would duplicate the pinned version)
 ARG BUILD_FROM
 
-# Home Assistant's Alpine base (bash, curl, jq) plus tcpdump to watch the ports
+# Home Assistant's Alpine base, plus tcpdump to watch the ports and Python for
+# the waker and its start page (standard library only)
 FROM ${BUILD_FROM}
-RUN apk add --no-cache tcpdump
-COPY run.sh /run.sh
-RUN chmod +x /run.sh
-ENTRYPOINT ["/run.sh"]
+RUN apk add --no-cache python3 tcpdump
+COPY game_waker.py /game_waker.py
+ENTRYPOINT ["python3", "-u", "/game_waker.py"]

@@ -1,5 +1,5 @@
 name: Game Waker
-version: "1.0.1"
+version: "1.1.0"
 slug: game_waker
 description: Starts a stopped game server add-on when someone tries to join it
 url: https://github.com/danechristenson/home-assistant/tree/main/game_waker
@@ -10,7 +10,8 @@ init: false
 startup: services
 boot: auto
 # Watches the games' ports on the host (like tcpdump) without taking them, so
-# the game itself can always start: host network and raw sockets for capture
+# the game itself can always start: host network and raw sockets for capture.
+# The start page listens on web_port, for a reverse proxy.
 host_network: true
 privileged:
   - NET_RAW
@@ -20,7 +21,20 @@ hassio_role: manager
 homeassistant_api: true
 options:
   games: []
+  home_networks:
+    - 192.168.0.0/16
+    - 10.0.0.0/8
+  wake_from: []
+  web_port: 8095
 schema:
   games:
-    - addon: str
+    - name: str
+      addon: str
       udp_ports: match(^\d{1,5}(-\d{1,5})?$)
+      query_port: port?
+      join_address: str?
+  home_networks:
+    - str
+  wake_from:
+    - str
+  web_port: port
