@@ -12,7 +12,7 @@ RUN wget -qO- "https://github.com/element-hq/element-web/releases/download/${ELE
     && mkdir -p /www/invite \
     && mv "/tmp/element-${ELEMENT_VERSION}" /www/element \
     && rm /www/element/config.sample.json \
-    && wget -qO /www/invite/qrcode.js "https://cdn.jsdelivr.net/npm/qrcode-generator@${QRCODE_VERSION}/qrcode.js"
+    && wget -qO /www/invite/qrcode.js "https://cdn.jsdelivr.net/npm/qrcode-generator@${QRCODE_VERSION}/dist/qrcode.js"
 
 FROM busybox:1.38-musl AS busybox
 
