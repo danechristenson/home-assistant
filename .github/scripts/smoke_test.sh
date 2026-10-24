@@ -201,7 +201,7 @@ PY
         grep -q "POST /addons/smoke/start" "$DATA/requests.log" || fail "a player's packet did not start the game"
         grep -q "POST /core/api/events/game_waker_wake .*\"from\":\"$HOST_IP\"" "$DATA/requests.log" \
             || fail "no game_waker_wake event with the player's address: $(cat "$DATA/requests.log")"
-        docker logs "$NAME" 2>&1 | grep -q "smoke: $HOST_IP is trying to join; starting it" || fail "join not logged"
+        docker logs "$NAME" 2>&1 | grep -q "smoke: $HOST_IP is trying to join (UDP 23456, 4 bytes, starting 6a6f696e); starting it" || fail "join not logged"
         ;;
     *)
         fail "no smoke test for $ADDON"

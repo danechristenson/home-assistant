@@ -52,11 +52,16 @@ watch_game() {
                 ;;
         esac
         # (tcpdump exits 0 when timeout stops it too, so check a packet came)
-        packet=$(timeout "$LISTEN_SECONDS" tcpdump -c 1 -l -n -p -q -i any "$filter" 2> /dev/null)
+        packet=$(timeout "$LISTEN_SECONDS" tcpdump -c 1 -l -n -p -q -x -i any "$filter" 2> /dev/null)
         [[ -n "$packet" ]] || continue
         [[ "$(addon_state "$addon")" =~ ^(stopped|error)$ ]] || continue
-        from=$(sed -nE 's/.* IP6? ([0-9a-fA-F.:]+)\.[0-9]+ > .*/\1/p' <<< "$packet")
-        echo "[INFO] $addon: ${from:-someone} is trying to join; starting it"
+        # First line: "... IP 203.0.113.5.50000 > 192.168.8.112.2456: UDP, length 25"; then the
+        # packet in hex, IP and UDP headers (28 bytes) first
+        from=$(head -1 <<< "$packet" | sed -nE 's/.* IP6? ([0-9a-fA-F.:]+)\.[0-9]+ > .*/\1/p')
+        to_port=$(head -1 <<< "$packet" | sed -nE 's/.* > [0-9a-fA-F.:]+\.([0-9]+): .*/\1/p')
+        size=$(head -1 <<< "$packet" | sed -nE 's/.*length ([0-9]+).*/\1/p')
+        start=$(tail -n +2 <<< "$packet" | sed -E 's/^[^:]*://' | tr -d ' \n\t' | cut -c57-72)
+        echo "[INFO] $addon: ${from:-someone} is trying to join (UDP ${to_port:-?}, ${size:-?} bytes, starting ${start:-?}); starting it"
         supervisor -X POST -H "Content-Type: application/json" \
             -d "$(jq -cn --arg addon "$addon" --arg from "$from" '{addon: $addon, from: $from}')" \
             "$SUPERVISOR/core/api/events/game_waker_wake" > /dev/null 2>&1 \

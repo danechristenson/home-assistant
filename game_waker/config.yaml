@@ -1,5 +1,5 @@
 name: Game Waker
-version: "1.0.0"
+version: "1.0.1"
 slug: game_waker
 description: Starts a stopped game server add-on when someone tries to join it
 url: https://github.com/danechristenson/home-assistant/tree/main/game_waker
