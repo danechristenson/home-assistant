@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- Update Node.js 24.22.0 → 24.22.1 (security release).
+
 ## 1.0.1
 
 - Fixed: bad image
