@@ -20,6 +20,8 @@ license.
    VTT`, then `Starting Foundry VTT 14.xxx`. The download link is then
    cleared from the Configuration tab.
 6. Press **Open web UI** (or go to `http://<your Home Assistant IP>:30000`).
+   It takes you to the **Address players use** if you set one (see Options),
+   otherwise to port 30000 of the address you opened Home Assistant with.
    Foundry asks for your license key (from the same Purchased Licenses page)
    and to accept its license agreement.
 7. **Set an administrator password straight away**: in Foundry's Setup,
@@ -71,6 +73,8 @@ Updates of this add-on only change Node.js, never Foundry.
   Cleared once used.
 - **Address players use**: the address shown in Foundry's invitation links,
   e.g. `foundry.example.com`. Empty: your Home Assistant's IP address.
+  **Open web UI** (and the sidebar entry, if you turn on **Show in
+  sidebar**) goes there too.
 - **Behind an HTTPS reverse proxy**: turn on when players reach Foundry
   through a reverse proxy with HTTPS (see below).
 - **Open this world on start**: the world's ID (its folder name, shown under

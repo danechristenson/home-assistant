@@ -137,12 +137,18 @@ JS
             || fail "Foundry not started as expected: $(docker exec "$NAME" cat /config/smoke.json)"
         docker exec "$NAME" jq -e '.hostname == "vtt.example.com" and .proxySSL == true and .proxyPort == 443 and .upnp == false and .dataPath == "/config"' /config/Config/options.json > /dev/null \
             || fail "options.json not written"
+        # Open web UI (ingress) goes to the address players use
+        open_web_ui() { docker exec "$NAME" curl -fsS http://127.0.0.1:8099/; }
+        open_web_ui | grep -q 'const url = "https://vtt.example.com/" ||' \
+            || fail "Open web UI does not go to the address players use: $(open_web_ui)"
         # An expired link must not break the existing install
         docker rm -f "$NAME" > /dev/null
         echo '{"download_url": "file:///data/expired.zip", "hostname": "", "proxy_ssl": false, "world": ""}' > "$DATA/options.json"
         docker run -d --name "$NAME" -p 13000:30000 -v "$DATA:/data:z" -v "$DATA/config:/config:z" "$IMAGE" > /dev/null
         wait_for http://localhost:13000/ || fail "existing Foundry did not start after a failed download"
         docker logs "$NAME" 2>&1 | grep -q "Starting the Foundry VTT that was already installed" || fail "failed download not reported"
+        # No address set: Open web UI uses Home Assistant's own, port 30000
+        open_web_ui | grep -q 'const url = "" ||' || fail "Open web UI without an address: $(open_web_ui)"
         ;;
     *)
         fail "no smoke test for $ADDON"

@@ -9,6 +9,6 @@ FROM ${BUILD_FROM}
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl jq unzip \
     && rm -rf /var/lib/apt/lists/*
-COPY run.sh /run.sh
+COPY run.sh ingress.mjs /
 RUN chmod +x /run.sh
 ENTRYPOINT ["/run.sh"]

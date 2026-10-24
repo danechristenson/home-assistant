@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3
+
+- **Open web UI** goes to the **Address players use** (https when behind
+  an HTTPS reverse proxy), not Home Assistant's address on port 30000.
+  It can also be shown in the sidebar (**Show in sidebar**).
+
 ## 1.0.2
 
 - Update Node.js 24.22.0 → 24.22.1 (security release).

@@ -129,6 +129,21 @@ if [[ -n "$WORLD" ]]; then
     ARGS+=("--world=$WORLD")
 fi
 
+# Open web UI (ingress.mjs) goes to the address players use; empty: Home
+# Assistant's own address on port 30000. A scheme or path typed into the
+# option is dropped.
+FOUNDRY_HOST=$(opt hostname)
+FOUNDRY_HOST=${FOUNDRY_HOST#*://}
+FOUNDRY_HOST=${FOUNDRY_HOST%%/*}
+FOUNDRY_URL=
+if [[ -n "$FOUNDRY_HOST" && "$PROXY_SSL" == true ]]; then
+    FOUNDRY_URL="https://$FOUNDRY_HOST/"
+elif [[ -n "$FOUNDRY_HOST" ]]; then
+    FOUNDRY_URL="http://$FOUNDRY_HOST:30000/"
+fi
+setpriv --reuid=node --regid=node --init-groups --inh-caps=-all \
+    env HOME=/home/node FOUNDRY_URL="$FOUNDRY_URL" node /ingress.mjs &
+
 VERSION=$(jq -r '.release | "\(.generation).\(.build)"' "$INSTALL/package.json" 2>/dev/null || echo "unknown")
 echo "[INFO] Starting Foundry VTT ${VERSION} on port 30000 (Node.js $(node --version))"
 cd "$INSTALL"
