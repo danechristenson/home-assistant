@@ -1,5 +1,10 @@
 # Changelog
 
+## 26.9.1.15
+
+- Update qrcode-generator 1.5.2 → 2.0.4.
+- New major version: check the upstream release notes before merging.
+
 ## 26.9.1.14
 
 - Update Alpine (Element Web build stage) 3.22 → 3.24.
