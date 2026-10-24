@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+- Update Home Assistant base image 3.22 → 3.24.
+
 ## 1.4.0
 
 - Minecraft requests go to the Minecraft Bedrock add-on over MQTT, with

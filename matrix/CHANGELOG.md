@@ -1,5 +1,10 @@
 # Changelog
 
+## 26.9.1.14
+
+- Update Alpine (Element Web build stage) 3.22 → 3.24.
+- Update busybox 1.37 → 1.38.
+
 ## 26.9.1.13
 
 - New **Password for phone apps** page (linked from Element's home screen in

@@ -4,7 +4,7 @@
 ARG BUILD_FROM
 
 # Element Web (the browser client) and the QR code library for the invite page
-FROM alpine:3.22 AS web
+FROM alpine:3.24 AS web
 ARG ELEMENT_VERSION
 ARG QRCODE_VERSION
 RUN wget -qO- "https://github.com/element-hq/element-web/releases/download/${ELEMENT_VERSION}/element-${ELEMENT_VERSION}.tar.gz" \
@@ -14,7 +14,7 @@ RUN wget -qO- "https://github.com/element-hq/element-web/releases/download/${ELE
     && rm /www/element/config.sample.json \
     && wget -qO /www/invite/qrcode.js "https://cdn.jsdelivr.net/npm/qrcode-generator@${QRCODE_VERSION}/qrcode.js"
 
-FROM busybox:1.37-musl AS busybox
+FROM busybox:1.38-musl AS busybox
 
 # The upstream image is distroless; add a static busybox for the shell and web server
 FROM ${BUILD_FROM}
