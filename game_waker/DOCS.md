@@ -9,6 +9,8 @@ wanted:
 - **From anywhere else**, open the start page (e.g. `valheim.example.com`)
   and press **Start**. That address is remembered, so next time joining from
   there is enough.
+- **In Home Assistant**, press **Open web UI** on this add-on (or turn on
+  **Show in sidebar**) for the same start page.
 
 The first try to join fails, because the game isn't running yet. Wait until
 it has started (often a minute or two: many game add-ons check for updates
@@ -87,8 +89,21 @@ on the add-on's device if it's disabled).
 ## Notifications
 
 Each start fires a `game_waker_wake` event in Home Assistant, with the
-add-on's slug (`addon`), the game's name (`game`) and the address that woke
-it (`from`), for a notification such as "Valheim is starting".
+add-on's slug (`addon`), the game's name (`game`), the address that woke it
+(`from`) and how (`how`: `joined` or `start page`). For example:
+
+```yaml
+triggers:
+  - trigger: event
+    event_type: game_waker_wake
+actions:
+  - action: notify.mobile_app_your_phone
+    data:
+      title: "{{ trigger.event.data.game }} is starting"
+      message: >-
+        Woken by {{ trigger.event.data.from }}
+        ({{ 'the start page' if trigger.event.data.how == 'start page' else 'joining' }}).
+```
 
 ## Permissions
 

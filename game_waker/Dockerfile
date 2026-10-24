@@ -7,5 +7,5 @@ ARG BUILD_FROM
 # the waker and its start page (standard library only)
 FROM ${BUILD_FROM}
 RUN apk add --no-cache python3 tcpdump
-COPY game_waker.py /game_waker.py
+COPY game_waker.py icon.png /
 ENTRYPOINT ["python3", "-u", "/game_waker.py"]
