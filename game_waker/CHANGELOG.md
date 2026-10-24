@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0
+
+- Icon and logo.
+- The start page in Home Assistant too: **Open web UI**, and **Show in
+  sidebar** for a Game Waker entry. The page shows the icon.
+- The `game_waker_wake` event says how the game was woken (`how`: `joined`
+  or `start page`).
+- Fixed: the page didn't load with anything after a `?` in its address; a
+  malformed answer from a game's status query broke the page's status; Start
+  on a running game didn't say the address was remembered.
+
 ## 1.1.0
 
 - Only trusted addresses wake a game: the home networks (home and VPN),

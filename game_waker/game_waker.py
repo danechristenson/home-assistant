@@ -9,9 +9,10 @@ exactly what a joining game sends, so other addresses never wake a game. It
 only watches the traffic, like tcpdump, and never takes the ports, so the game
 can always start, from here or anywhere else.
 
-The start page (web_port, for a reverse proxy) shows each game's state and a
-Start button; pressing it starts the game and remembers the visitor's address,
-so next time joining from there wakes it by itself."""
+The start page (web_port, for a reverse proxy, and Home Assistant's Open web
+UI) shows each game's state and a Start button; pressing it starts the game
+and remembers the visitor's address, so next time joining from there wakes it
+by itself."""
 
 import html
 import ipaddress
@@ -23,10 +24,12 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 OPTIONS = "/data/options.json"
+ICON = "/icon.png"
 REMEMBERED = "/data/remembered.json"
 # The smoke test points these at a stand-in
 SUPERVISOR = os.environ.get("SUPERVISOR_URL", "http://supervisor")
@@ -41,7 +44,7 @@ INTERNAL = [ipaddress.ip_network(n) for n in ("127.0.0.0/8", "::1/128", "172.30.
 # change address now and then)
 FORGET_DAYS = 60
 
-lock = threading.Lock()
+remembered_lock = threading.Lock()
 log_lock = threading.Lock()
 
 
@@ -91,7 +94,7 @@ def load_remembered():
 
 
 def remember(ip):
-    with lock:
+    with remembered_lock:
         saved = load_remembered()
         new = ip not in saved
         saved[ip] = time.time()
@@ -126,13 +129,15 @@ class Game:
         internal = " and ".join(f"not src net {n}" for n in INTERNAL)
         return f"udp and dst {ports} and ({sources}) and {internal}" if sources else None
 
-    def start(self, why, from_ip=""):
-        """Start the game unless it's already starting; in the background, as games often update first."""
+    def start(self, why, from_ip, how):
+        """Start the game unless it's already starting; in the background, as games often update first.
+        how: "joined" or "start page", for the game_waker_wake event."""
         if not self.starting.acquire(blocking=False):
             return
         log("INFO", f"{self.name}: {why}; starting it")
         try:
-            supervisor("/core/api/events/game_waker_wake", "POST", {"addon": self.addon, "game": self.name, "from": from_ip})
+            supervisor("/core/api/events/game_waker_wake", "POST",
+                       {"addon": self.addon, "game": self.name, "from": from_ip, "how": how})
         except OSError:
             log("WARN", f"{self.name}: couldn't tell Home Assistant (event game_waker_wake)")
 
@@ -164,10 +169,10 @@ class Game:
         if data[4:5] != b"I":
             return False, None
         # header, protocol, then name, map, folder and game (each ending in 0), app id (2), players
-        rest = data[6:]
-        for _ in range(4):
-            rest = rest[rest.index(b"\x00") + 1:]
-        return True, rest[2] if len(rest) > 2 else None
+        parts = data[6:].split(b"\x00", 4)
+        if len(parts) < 5 or len(parts[4]) < 3:
+            return True, None
+        return True, parts[4][2]
 
     def watch(self):
         log("INFO", f"{self.name}: starts when someone at home, on the VPN or at a remembered address "
@@ -200,7 +205,7 @@ class Game:
             payload = "".join(re.sub(r"^[^:]*:", "", line) for line in out.splitlines()[1:]).replace(" ", "")[56:72]
             if addon_state(self.addon) in ("stopped", "error"):
                 self.start(f"{match.group(1)} is trying to join (UDP {match.group(2)}, {match.group(3)} bytes, "
-                           f"starting {payload})", match.group(1))
+                           f"starting {payload})", match.group(1), "joined")
 
 
 # --- the start page ---
@@ -210,14 +215,18 @@ PAGE = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
+<link rel="icon" href="icon.png">
 <style>
-  :root {{ --bg: #f4f5f7; --card: #fff; --text: #16181d; --muted: #5d6470; --accent: #2e7d32; --line: #dde1e6; }}
+  :root {{ --bg: #f4f5f7; --card: #fff; --text: #16181d; --muted: #5d6470; --accent: #3949ab; --line: #dde1e6; }}
   @media (prefers-color-scheme: dark) {{
-    :root {{ --bg: #121417; --card: #1c1f24; --text: #eceef1; --muted: #9aa2ad; --accent: #66bb6a; --line: #2c3138; }}
+    :root {{ --bg: #121417; --card: #1c1f24; --text: #eceef1; --muted: #9aa2ad; --accent: #5c6bc0; --line: #2c3138; }}
   }}
   body {{ margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 system-ui, sans-serif; }}
   main {{ max-width: 34rem; margin: 0 auto; padding: 32px 16px; }}
   section {{ background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; margin-bottom: 16px; }}
+  header {{ display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }}
+  header img {{ width: 40px; height: 40px; }}
+  header span {{ font-weight: 600; color: var(--muted); }}
   h1 {{ font-size: 1.4rem; margin: 0 0 4px; }}
   .state {{ color: var(--muted); margin: 0 0 16px; }}
   button {{ font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: 0; border-radius: 8px;
@@ -227,6 +236,7 @@ PAGE = """<!doctype html>
   .note {{ color: var(--muted); font-size: 0.9rem; margin: 12px 0 0; }}
 </style>
 <main>
+<header><img src="icon.png" alt=""><span>Game Waker</span></header>
 {sections}
 </main>
 <script>
@@ -285,15 +295,28 @@ def handler_for(games, trusted):
             self.end_headers()
             self.wfile.write(data)
 
+        def path_only(self):
+            return urllib.parse.urlsplit(self.path).path
+
         def do_GET(self):
-            if self.path == "/status":
+            path = self.path_only()
+            if path == "/icon.png":
+                with open(ICON, "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "max-age=86400")
+                self.end_headers()
+                self.wfile.write(data)
+            elif path == "/status":
                 rows = []
                 for g in games:
                     ready, players = g.ready()
                     rows.append({"name": g.name, "state": addon_state(g.addon), "starting": g.starting.locked(),
                                  "ready": ready, "players": players})
                 self.send(200, json.dumps(rows), "application/json")
-            elif self.path == "/":
+            elif path == "/":
                 title = games[0].name if len(games) == 1 else "Game servers"
                 sections = "\n".join(SECTION.format(
                     i=i, name=html.escape(g.name),
@@ -304,21 +327,21 @@ def handler_for(games, trusted):
                 self.send(404, "Not found", "text/plain")
 
         def do_POST(self):
-            match = re.fullmatch(r"/start/(\d+)", self.path)
+            match = re.fullmatch(r"/start/(\d+)", self.path_only())
             if not match or int(match.group(1)) >= len(games):
                 self.send(404, "Not found", "text/plain")
                 return
             g, ip = games[int(match.group(1))], self.visitor()
             address = ipaddress.ip_address(ip)
-            message = f"Starting {g.name}."
+            if addon_state(g.addon) in ("stopped", "error"):
+                g.start(f"{ip} pressed Start", ip, "start page")
+                message = f"Starting {g.name}."
+            else:
+                message = f"{g.name} is already running."
             if not any(address in n for n in INTERNAL) and not any(address in n for n in g.home + g.extra):
                 if remember(ip):
                     log("INFO", f"Remembering {ip} (pressed Start): it can now wake the games by joining")
                 message += " Your address is remembered: next time, just join."
-            if addon_state(g.addon) in ("stopped", "error"):
-                g.start(f"{ip} pressed Start", ip)
-            else:
-                message = f"{g.name} is already running."
             self.send(200, json.dumps({"message": message}), "application/json")
 
         def log_message(self, *args):
@@ -336,13 +359,25 @@ def main():
         log("WARN", "No games to watch: add one under 'Games' on the Configuration tab")
         while True:
             time.sleep(3600)
+    remembered = len(load_remembered())
+    if remembered:
+        log("INFO", f"{remembered} remembered address{'es' if remembered != 1 else ''} can wake the games by joining")
     for g in games:
         threading.Thread(target=g.watch, daemon=True).start()
-    # The reverse proxy reaches the page from Home Assistant's own or a private network
+    # The reverse proxy and Home Assistant's ingress reach the page from Home
+    # Assistant's own or a private network, and pass the visitor's address on
     trusted = INTERNAL + [ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")]
+    handler = handler_for(games, trusted)
+    # Open web UI: the Supervisor picks the ingress port (ingress_port: 0)
+    try:
+        ingress = int(supervisor("/addons/self/info").get("data", {}).get("ingress_port") or 0)
+    except (OSError, ValueError):
+        ingress = 0
+    if ingress:
+        threading.Thread(target=ThreadingHTTPServer(("0.0.0.0", ingress), handler).serve_forever, daemon=True).start()
     port = int(options.get("web_port") or 8095)
-    log("INFO", f"Start page on port {port} (put it behind your reverse proxy)")
-    ThreadingHTTPServer(("0.0.0.0", port), handler_for(games, trusted)).serve_forever()
+    log("INFO", f"Start page on port {port} (put it behind your reverse proxy) and in Open web UI")
+    ThreadingHTTPServer(("0.0.0.0", port), handler).serve_forever()
 
 
 if __name__ == "__main__":

@@ -162,7 +162,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_response(200); self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data))); self.end_headers(); self.wfile.write(data)
     def do_GET(self):
-        self.reply({"result": "ok", "data": {"state": state} if self.path == "/addons/smoke/info" else {}})
+        data = {"/addons/smoke/info": {"state": state}, "/addons/self/info": {"ingress_port": 18096}}.get(self.path, {})
+        self.reply({"result": "ok", "data": data})
     def do_POST(self):
         global state
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode()
@@ -195,6 +196,10 @@ JSON
         curl -fsS http://127.0.0.1:18095/ | grep -q "Start Smoke" || fail "start page has no Start button"
         curl -fsS http://127.0.0.1:18095/ | grep -q "smoke.example.com:23456" || fail "start page has no join address"
         curl -fsS http://127.0.0.1:18095/status | grep -q '"state": "stopped"' || fail "status not shown: $(curl -fsS http://127.0.0.1:18095/status)"
+        curl -fsS "http://127.0.0.1:18095/?from=a-link" | grep -q "Start Smoke" || fail "start page with a query string"
+        [ "$(curl -fsS -o /dev/null -w '%{content_type}' http://127.0.0.1:18095/icon.png)" = image/png ] || fail "no icon"
+        # The same page for Home Assistant's Open web UI, on the ingress port the Supervisor gives
+        curl -fsS http://127.0.0.1:18096/ | grep -q "Start Smoke" || fail "no start page on the ingress port"
         curl -fsS -X POST -H "X-Real-IP: $HOST_IP" http://127.0.0.1:18095/start/0 | grep -q "remembered" \
             || fail "Start didn't remember the address"
         sleep 2
@@ -209,7 +214,9 @@ JSON
             sleep 1
         done
         [ "$(starts)" = 2 ] || fail "joining from a remembered address did not start the game"
-        grep -q "POST /core/api/events/game_waker_wake .*\"from\": \"$HOST_IP\"" "$DATA/requests.log" \
+        grep -q "POST /core/api/events/game_waker_wake .*\"from\": \"$HOST_IP\", \"how\": \"start page\"" "$DATA/requests.log" \
+            || fail "no game_waker_wake event for the start page: $(cat "$DATA/requests.log")"
+        grep -q "POST /core/api/events/game_waker_wake .*\"from\": \"$HOST_IP\", \"how\": \"joined\"" "$DATA/requests.log" \
             || fail "no game_waker_wake event with the player's address: $(cat "$DATA/requests.log")"
         docker logs "$NAME" 2>&1 | grep -q "Smoke: $HOST_IP is trying to join (UDP 23456, 4 bytes, starting 6a6f696e); starting it" \
             || fail "join not logged: $(docker logs "$NAME" 2>&1 | tail -5)"

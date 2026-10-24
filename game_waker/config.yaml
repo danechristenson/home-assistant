@@ -1,5 +1,5 @@
 name: Game Waker
-version: "1.1.0"
+version: "1.2.0"
 slug: game_waker
 description: Starts a stopped game server add-on when someone tries to join it
 url: https://github.com/danechristenson/home-assistant/tree/main/game_waker
@@ -13,6 +13,12 @@ boot: auto
 # the game itself can always start: host network and raw sockets for capture.
 # The start page listens on web_port, for a reverse proxy.
 host_network: true
+# The same start page in Home Assistant (Open web UI, optionally the sidebar);
+# on the host network the Supervisor picks the port (0), read at start
+ingress: true
+ingress_port: 0
+panel_icon: mdi:gamepad-variant
+panel_title: Game Waker
 privileged:
   - NET_RAW
 # Starts the game add-ons (manager role), and tells Home Assistant (an event)
