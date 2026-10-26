@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.13.11
+
+- Update LiveKit v1.13.10 → v1.13.11.
+
 ## 1.13.10
 
 - Update LiveKit v1.13.9 → v1.13.10.

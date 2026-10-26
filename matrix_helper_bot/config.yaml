@@ -1,5 +1,5 @@
 name: Matrix Helper Bot
-version: "1.4.1"
+version: "1.4.2"
 slug: matrix_helper_bot
 description: Lets chosen people reset Matrix passwords and manage Minecraft players from chat
 url: https://github.com/danechristenson/home-assistant/tree/main/matrix_helper_bot

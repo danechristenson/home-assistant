@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.2
+
+- Update github.com/mattn/go-colorable v0.1.14 → v0.1.16.
+- Update github.com/mattn/go-isatty v0.0.20 → v0.0.24.
+- Update github.com/tidwall/match v1.1.1 → v1.2.0.
+- Update github.com/tidwall/pretty v1.2.1 → v1.2.2.
+
 ## 1.4.1
 
 - Update Home Assistant base image 3.22 → 3.24.

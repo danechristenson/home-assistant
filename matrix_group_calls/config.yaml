@@ -1,5 +1,5 @@
 name: Matrix Group Calls
-version: "1.13.10"
+version: "1.13.11"
 slug: matrix_group_calls
 description: Group voice and video calls with screen sharing for the Matrix add-on
 url: https://github.com/danechristenson/home-assistant/tree/main/matrix_group_calls

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.10.2.1
+
+- Update itzg/minecraft-bedrock-server 2026.10.1 → 2026.10.2.
+
 ## 2026.10.1.8
 
 - The **Message everyone** and **Add player** boxes have an empty value
