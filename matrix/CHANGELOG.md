@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.9.1.16
+
+- Update Element Web v1.12.32 → v1.12.33.
+
 ## 26.9.1.15
 
 - Update qrcode-generator 1.5.2 → 2.0.4.
