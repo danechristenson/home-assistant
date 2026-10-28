@@ -1,7 +1,7 @@
-# Home Assistant Add-on: farmOS
+# Home Assistant Add-on: Homestead for farmOS
 
-[farmOS](https://farmos.org), the open-source farm and garden record keeper,
-on your Home Assistant.
+Runs [farmOS](https://farmos.org), the open-source farm and garden record
+keeper, on your Home Assistant.
 
 ![Supports amd64 Architecture][amd64-shield]
 ![Supports aarch64 Architecture][aarch64-shield]
@@ -19,6 +19,10 @@ harvests and observations.
   to share
 
 See the **Documentation** tab for setup.
+
+farmOS is a registered trademark of Michael Stenta. This add-on runs the
+official farmOS software; it is not affiliated with or endorsed by the farmOS
+project.
 
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg

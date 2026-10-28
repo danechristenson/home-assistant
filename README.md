@@ -23,7 +23,7 @@ Or click the button above to add the repository in one step.
 
 | Add-on | Description |
 | ------ | ----------- |
-| [farmOS](./farmos) | The open-source farm and garden record keeper: plants on a map, with their crops, varieties and logs. Its own SQLite database, nothing else to install. |
+| [Homestead for farmOS](./farmos) | Runs farmOS, the open-source farm and garden record keeper: plants on a map, with their crops, varieties and logs. Its own SQLite database, nothing else to install. |
 | [Foundry VTT](./foundry_vtt) | Foundry Virtual Tabletop, installed from your own license with a timed download link. |
 | [Game Waker](./game_waker) | Starts a stopped game server add-on (such as Valheim) when someone at home joins, or from a start page, so idle games can be stopped. Start page through the reverse proxy; no ports to forward. |
 | [Matrix](./matrix) | Private, encrypted group chat on Home Assistant, using the Element app |

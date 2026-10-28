@@ -1,8 +1,8 @@
-# farmOS
+# Homestead for farmOS
 
-[farmOS](https://farmos.org) keeps records for a farm or garden: each plant,
-bed or field as an item on a map, with its crop or variety and a log of what
-happened to it.
+This add-on runs [farmOS](https://farmos.org), which keeps records for a farm
+or garden: each plant, bed or field as an item on a map, with its crop or
+variety and a log of what happened to it.
 
 ## First start
 
@@ -53,3 +53,9 @@ Mapbox instead.
   behind a reverse proxy with HTTPS rather than forwarding the port.
 - SQLite suits a household or a small farm. For many users at once, farmOS
   recommends PostgreSQL.
+
+## Trademark
+
+farmOS is a registered trademark of Michael Stenta. This add-on runs the
+official farmOS software; it is not affiliated with or endorsed by the farmOS
+project.
