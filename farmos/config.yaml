@@ -1,0 +1,23 @@
+name: farmOS
+version: "3.5.9.1"
+slug: farmos
+description: farmOS, the open-source farm and garden record keeper, with its own SQLite database
+url: https://github.com/danechristenson/home-assistant/tree/main/farmos
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+# farmOS (Drupal) builds its links from the address it's served at, so it gets
+# its own port rather than Home Assistant's ingress path
+webui: http://[HOST]:[PORT:80]
+watchdog: http://[HOST]:[PORT:80]/user/login
+ports:
+  80/tcp: 8096
+ports_description:
+  80/tcp: farmOS (web)
+# The site (settings, uploaded files, the OAuth keys) and its SQLite database
+# live in /data, so the add-on's backups hold the whole farm. Its own folder
+# (/config, addon_configs on the host) holds the API key for sync scripts.
+map:
+  - addon_config:rw

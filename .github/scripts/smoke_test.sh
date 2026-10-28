@@ -13,7 +13,8 @@ DATA=$(mktemp -d)
 chmod 755 "$DATA"
 
 cleanup() {
-    docker logs "$NAME" > "$DATA/container.log" 2>&1 || true
+    # (an add-on that takes over /data, like farmOS's www-data, leaves it unwritable here)
+    { docker logs "$NAME" > "$DATA/container.log" 2>&1; } 2>/dev/null || true
     docker rm -f "$NAME" > /dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -149,6 +150,34 @@ JS
         docker logs "$NAME" 2>&1 | grep -q "Starting the Foundry VTT that was already installed" || fail "failed download not reported"
         # No address set: Open web UI uses Home Assistant's own, port 30000
         open_web_ui | grep -q 'const url = "" ||' || fail "Open web UI without an address: $(open_web_ui)"
+        ;;
+    farmos)
+        mkdir -p "$DATA/config"
+        docker run -d --name "$NAME" -p 18096:80 -v "$DATA:/data:z" -v "$DATA/config:/config:z" "$IMAGE" > /dev/null
+        wait_for http://127.0.0.1:18096/core/install.php || fail "installer did not respond"
+        curl -fsS http://127.0.0.1:18096/core/install.php | grep -q "SQLite" || fail "installer offers no SQLite"
+        # Installed (as the installer would with SQLite), then restarted: the private files path, the
+        # updates and the API key
+        docker exec "$NAME" runuser -u www-data -- /opt/drupal/vendor/bin/drush --root=/opt/drupal/web \
+            site:install farm --db-url=sqlite:///data/db/farmos.sqlite --site-name=Smoke \
+            --account-name=admin --account-pass="$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')" -y \
+            > /dev/null 2>&1 || fail "farmOS did not install"
+        docker restart "$NAME" > /dev/null
+        wait_for http://127.0.0.1:18096/user/login || fail "farmOS did not come back after installing"
+        docker logs "$NAME" 2>&1 | grep -q "private files path" || fail "private files path not set"
+        docker exec "$NAME" grep -q "file_private_path" /data/sites/default/settings.php || fail "private files path missing"
+        # (only farmOS's own user can read the key: through the container)
+        KEY=$(docker exec "$NAME" cat /config/api_client.json) || fail "no API key in /config"
+        SECRET=$(echo "$KEY" | python3 -c "import json, sys; print(json.load(sys.stdin)['client_secret'])")
+        TOKEN=$(curl -fsS http://127.0.0.1:18096/oauth/token -d grant_type=client_credentials -d client_id=api_sync \
+            -d "client_secret=$SECRET" -d scope=farm_manager \
+            | python3 -c "import json, sys; print(json.load(sys.stdin)['access_token'])") || fail "the API key got no token"
+        curl -fsS -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.api+json" \
+            http://127.0.0.1:18096/api/asset/plant > /dev/null || fail "the API key can't read plants"
+        # A second start keeps the same key
+        docker restart "$NAME" > /dev/null
+        wait_for http://127.0.0.1:18096/user/login || fail "farmOS did not come back"
+        docker logs "$NAME" 2>&1 | grep -q "API key: ready" || fail "a restart replaced the API key"
         ;;
     game_waker)
         # A stand-in Supervisor: the "smoke" game is stopped until something

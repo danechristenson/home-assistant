@@ -327,6 +327,31 @@ def update_helper_bot():
     return True
 
 
+def latest_farmos(current):
+    tags = get_json("https://hub.docker.com/v2/repositories/farmos/farmos/tags?page_size=100&ordering=last_updated")
+    return pick([t["name"] for t in tags["results"] if re.fullmatch(r"\d+\.\d+\.\d+", t["name"])], current)
+
+
+def update_farmos():
+    """The add-on version is farmOS's plus a fourth number for the add-on's own
+    changes (3.5.9.1). The add-on applies farmOS's database updates when it
+    starts with a new version."""
+    folder = ROOT / "farmos"
+    build = folder / "build.yaml"
+    text = build.read_text()
+    current = read_value(text, r"farmos/farmos:([\d.]+)-amd64$")
+    latest = latest_farmos(current)
+    if version_key(latest) <= version_key(current):
+        return False
+    build.write_text(text.replace(f"farmos/farmos:{current}-", f"farmos/farmos:{latest}-"))
+    addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
+    new_version = f"{latest}.1"
+    set_addon_version("farmos", new_version)
+    add_changelog_entry("farmos", new_version, [f"Update farmOS {current} → {latest}."])
+    print(f"farmos: {addon_version} -> {new_version}", file=sys.stderr)
+    return True
+
+
 def latest_itzg_bedrock():
     tags = get_json("https://hub.docker.com/v2/repositories/itzg/minecraft-bedrock-server/tags?page_size=100&ordering=last_updated")
     versions = [t["name"] for t in tags["results"] if re.fullmatch(r"\d{4}\.\d+\.\d+", t["name"])]
@@ -418,6 +443,7 @@ def os_ids():
 
 
 UPDATERS = {
+    "farmos": update_farmos,
     "foundry_vtt": update_foundry,
     "matrix": update_matrix,
     "matrix_call_relay": update_relay,

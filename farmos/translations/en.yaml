@@ -1,0 +1,2 @@
+network:
+  80/tcp: farmOS web interface
