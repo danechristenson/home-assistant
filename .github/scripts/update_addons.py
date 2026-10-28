@@ -18,10 +18,12 @@ newer major versions for one add-on, and the workflow opens a pull request
 with them. Continuwuity (v26.x) and the itzg image (2026.x) number their
 versions by year, so they have no major versions and always update daily.
 
-Versions must always increase for Home Assistant (AwesomeVersion): a new
-Continuwuity release becomes the Matrix version (26.10.0); any other change
-bumps a fourth number (26.9.1.5). Never use "-N" suffixes: those are
-pre-releases and sort as older.
+Add-on versions are semantic (MAJOR.MINOR.PATCH) and the add-on's own: an
+update within the current major version is a patch (26.9.2 -> 26.9.3), a new
+major version a major one (4.18.0 -> 5.0.0); new features in an add-on bump
+its minor version by hand. Upstream versions are in the changelog. Versions
+must always increase for Home Assistant (AwesomeVersion), and never use "-N"
+suffixes: those are pre-releases and sort as older.
 """
 
 import json
@@ -146,6 +148,13 @@ def add_changelog_entry(folder, version, lines):
     path.write_text(text.replace("# Changelog\n\n", f"# Changelog\n\n{entry}", 1))
 
 
+def bump_version(folder):
+    """The add-on's next version: a patch, or with --major a major version."""
+    major, minor, patch = (int(p) for p in read_value((ROOT / folder / "config.yaml").read_text(),
+                                                       r'^version: "(\d+\.\d+\.\d+)"$').split("."))
+    return f"{major + 1}.0.0" if MAJOR else f"{major}.{minor}.{patch + 1}"
+
+
 def set_addon_version(folder, version):
     path = ROOT / folder / "config.yaml"
     path.write_text(re.sub(r'^version: ".*"$', f'version: "{version}"', path.read_text(), count=1, flags=re.M))
@@ -187,13 +196,7 @@ def update_matrix():
     dockerfile.write_text(docker_text)
 
     addon_version = read_value((ROOT / "matrix" / "config.yaml").read_text(), r'^version: "(.*)"$')
-    if "continuwuity" in changes:
-        new_version = latest["continuwuity"].lstrip("v")
-    else:
-        parts = addon_version.split(".")
-        parts = parts + ["0"] if len(parts) == 3 else parts
-        parts[3] = str(int(parts[3]) + 1)
-        new_version = ".".join(parts)
+    new_version = bump_version("matrix")
     set_addon_version("matrix", new_version)
 
     names = {"continuwuity": "Continuwuity", "element": "Element Web", "qrcode": "qrcode-generator",
@@ -211,9 +214,11 @@ def update_relay():
     if version_key(latest) <= version_key(current):
         return False
     build.write_text(text.replace(f"coturn/coturn:{current}-alpine", f"coturn/coturn:{latest}-alpine"))
-    set_addon_version("matrix_call_relay", latest)
-    add_changelog_entry("matrix_call_relay", latest, [f"Update coturn {current} → {latest}."])
-    print(f"matrix_call_relay: {current} -> {latest}", file=sys.stderr)
+    addon_version = read_value((ROOT / "matrix_call_relay" / "config.yaml").read_text(), r'^version: "(.*)"$')
+    new_version = bump_version("matrix_call_relay")
+    set_addon_version("matrix_call_relay", new_version)
+    add_changelog_entry("matrix_call_relay", new_version, [f"Update coturn {current} → {latest}."])
+    print(f"matrix_call_relay: {addon_version} -> {new_version} (coturn {latest})", file=sys.stderr)
     return True
 
 
@@ -234,13 +239,7 @@ def update_group_calls():
     build.write_text(text)
 
     addon_version = read_value((ROOT / "matrix_group_calls" / "config.yaml").read_text(), r'^version: "(.*)"$')
-    if "livekit" in changes:
-        new_version = latest["livekit"].lstrip("v")
-    else:
-        parts = addon_version.split(".")
-        parts = parts + ["0"] if len(parts) == 3 else parts
-        parts[3] = str(int(parts[3]) + 1)
-        new_version = ".".join(parts)
+    new_version = bump_version("matrix_group_calls")
     set_addon_version("matrix_group_calls", new_version)
 
     names = {"livekit": "LiveKit", "lk_jwt": "lk-jwt-service"}
@@ -315,9 +314,7 @@ def update_helper_bot():
         return False
 
     addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
-    parts = addon_version.split(".")
-    parts[2] = str(int(parts[2]) + 1)
-    new_version = ".".join(parts)
+    new_version = bump_version("matrix_helper_bot")
     set_addon_version("matrix_helper_bot", new_version)
 
     names = {"mautrix": "mautrix-go", "go": "Go", "base": "Home Assistant base image"}
@@ -333,9 +330,8 @@ def latest_farmos(current):
 
 
 def update_farmos():
-    """The add-on version is farmOS's plus a fourth number for the add-on's own
-    changes (3.5.9.1). The add-on applies farmOS's database updates when it
-    starts with a new version."""
+    """The add-on applies farmOS's database updates when it starts with a new
+    version."""
     folder = ROOT / "farmos"
     build = folder / "build.yaml"
     text = build.read_text()
@@ -345,10 +341,10 @@ def update_farmos():
         return False
     build.write_text(text.replace(f"farmos/farmos:{current}-", f"farmos/farmos:{latest}-"))
     addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
-    new_version = f"{latest}.1"
+    new_version = bump_version("farmos")
     set_addon_version("farmos", new_version)
     add_changelog_entry("farmos", new_version, [f"Update farmOS {current} → {latest}."])
-    print(f"farmos: {addon_version} -> {new_version}", file=sys.stderr)
+    print(f"farmos: {addon_version} -> {new_version} (farmOS {latest})", file=sys.stderr)
     return True
 
 
@@ -366,9 +362,8 @@ def latest_bedrock():
 
 
 def update_minecraft():
-    """The add-on version is the itzg image version plus a fourth number that
-    counts Bedrock updates (2026.10.0.3). A new Bedrock release only needs a
-    restart, which installing the bumped version gives (with Auto update on)."""
+    """A new Bedrock release only needs a restart, which installing the bumped
+    version gives (with Auto update on)."""
     folder = ROOT / "minecraft_bedrock"
     build = folder / "build.yaml"
     text = build.read_text()
@@ -389,13 +384,7 @@ def update_minecraft():
     build.write_text(text)
 
     addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
-    if "itzg" in changes:
-        new_version = f"{latest['itzg']}.1"
-    else:
-        parts = addon_version.split(".")
-        parts = parts + ["0"] if len(parts) == 3 else parts
-        parts[3] = str(int(parts[3]) + 1)
-        new_version = ".".join(parts)
+    new_version = bump_version("minecraft_bedrock")
     set_addon_version("minecraft_bedrock", new_version)
 
     names = {"itzg": "itzg/minecraft-bedrock-server", "bedrock": "Bedrock server", "go": "Go (bot API)"}
@@ -428,9 +417,7 @@ def update_foundry():
     build.write_text(text.replace(f"node:{current}-trixie-slim", f"node:{latest}-trixie-slim"))
 
     addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
-    parts = addon_version.split(".")
-    parts[2] = str(int(parts[2]) + 1)
-    new_version = ".".join(parts)
+    new_version = bump_version("foundry_vtt")
     set_addon_version("foundry_vtt", new_version)
     add_changelog_entry("foundry_vtt", new_version, [f"Update Node.js {current} → {latest}."])
     print(f"foundry_vtt: {addon_version} -> {new_version} (node)", file=sys.stderr)

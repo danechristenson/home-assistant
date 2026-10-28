@@ -72,6 +72,18 @@ you update.
 and confirm only what you intended is reachable, e.g. that
 `http://<your public IP>:8123` does not open Home Assistant.
 
+## Versions
+
+Each add-on's version is its own, in semantic versioning (major.minor.patch):
+
+- **Patch:** fixes, and updates of the software it runs within the same major
+  version (these arrive automatically)
+- **Minor:** new features in the add-on
+- **Major:** changes that need your attention, such as a new major version of
+  the software it runs; read the changelog before updating
+
+Each changelog says which versions of the software the add-on runs.
+
 ## License
 
 [MIT](./LICENSE)

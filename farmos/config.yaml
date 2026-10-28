@@ -1,5 +1,5 @@
 name: farmOS
-version: "3.5.9.1"
+version: "1.0.0"
 slug: farmos
 description: farmOS, the open-source farm and garden record keeper, with its own SQLite database
 url: https://github.com/danechristenson/home-assistant/tree/main/farmos

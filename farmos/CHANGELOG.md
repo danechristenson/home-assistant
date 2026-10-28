@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.5.9.1
+## 1.0.0
 
 - First release: farmOS 3.5.9 (the official image) with its own SQLite
   database, its site, uploaded files and database in the add-on's data

@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.9.2
+
+- Versions are now semantic (major.minor.patch) and the add-on's own; the upstream versions it runs are in the changelog. This version only changes the numbering.
+
 ## 26.9.1.16
 
 - Update Element Web v1.12.32 → v1.12.33.
