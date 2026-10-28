@@ -22,7 +22,7 @@ run() {
     if [ -n "$DRY_RUN" ]; then echo "(dry run) $*"; else "$@"; fi
 }
 
-for addon in foundry_vtt matrix matrix_call_relay matrix_group_calls matrix_helper_bot minecraft_bedrock; do
+for addon in farmos foundry_vtt matrix matrix_call_relay matrix_group_calls matrix_helper_bot minecraft_bedrock; do
     branch="major/$addon"
     git checkout -q -B "$branch" "$BASE"
     if [ -z "$(python3 .github/scripts/update_addons.py --major --only "$addon")" ]; then

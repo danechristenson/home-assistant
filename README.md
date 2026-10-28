@@ -23,6 +23,7 @@ Or click the button above to add the repository in one step.
 
 | Add-on | Description |
 | ------ | ----------- |
+| [Homestead for farmOS](./farmos) | Runs farmOS, the open-source farm and garden record keeper: plants on a map, with their crops, varieties and logs. Its own SQLite database, nothing else to install. |
 | [Foundry VTT](./foundry_vtt) | Foundry Virtual Tabletop, installed from your own license with a timed download link. |
 | [Game Waker](./game_waker) | Starts a stopped game server add-on (such as Valheim) when someone at home joins, or from a start page, so idle games can be stopped. Start page through the reverse proxy; no ports to forward. |
 | [Matrix](./matrix) | Private, encrypted group chat on Home Assistant, using the Element app |
@@ -70,6 +71,18 @@ you update.
 **Check from outside.** After changing forwards, turn off Wi-Fi on your phone
 and confirm only what you intended is reachable, e.g. that
 `http://<your public IP>:8123` does not open Home Assistant.
+
+## Versions
+
+Each add-on's version is its own, in semantic versioning (major.minor.patch):
+
+- **Patch:** fixes, and updates of the software it runs within the same major
+  version (these arrive automatically)
+- **Minor:** new features in the add-on
+- **Major:** changes that need your attention, such as a new major version of
+  the software it runs; read the changelog before updating
+
+Each changelog says which versions of the software the add-on runs.
 
 ## License
 
