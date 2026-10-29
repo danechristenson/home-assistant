@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.5
+
+- Update Node.js 26.12.1 → 26.13.0.
+
 ## 1.0.4
 
 - Update Node.js 24.22.1 → 26.12.1.

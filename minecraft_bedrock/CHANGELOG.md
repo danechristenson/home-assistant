@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.10.4
+
+- Update Bedrock server 1.26.60.6 → 1.26.61.1.
+
 ## 2026.10.3
 
 - Versions are now semantic (major.minor.patch) and the add-on's own; the upstream versions it runs are in the changelog. This version only changes the numbering.
