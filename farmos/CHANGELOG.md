@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.0
+
+- Update farmOS 3.5.9 → 4.0.9.
+- New major version: check the upstream release notes before merging.
+
 ## 1.0.0
 
 - First release: runs farmOS 3.5.9 (the official image) with its own SQLite
