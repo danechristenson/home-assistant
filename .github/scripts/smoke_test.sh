@@ -188,6 +188,10 @@ JS
         docker restart "$NAME" > /dev/null
         wait_for http://127.0.0.1:18096/user/login || fail "farmOS did not come back"
         docker logs "$NAME" 2>&1 | grep -q "API key: ready" || fail "a restart replaced the API key"
+        # The image's SQLite fix: no "archived = FALSE/TRUE" queries left (they match nothing on SQLite)
+        if docker exec "$NAME" grep -rqE "condition\('archived', (FALSE|TRUE)\)" /opt/drupal/web/profiles/farm --include=*.php; then
+            fail "farmOS still compares archived with FALSE/TRUE (counts nothing on SQLite)"
+        fi
         # HTTPS on its own port (written as root: farmOS's www-data owns /data by now)
         echo '{"ssl": true, "certfile": "fullchain.pem", "keyfile": "privkey.pem", "reverse_proxy": false, "trusted_proxies": []}' \
             | docker exec -i "$NAME" sh -c 'cat > /data/options.json'
