@@ -3,7 +3,10 @@
 # main (major/<add-on>), build and smoke-test it, and open a pull request.
 # Nothing is merged: a major version reaches Home Assistant only when the pull
 # request is merged. A failed smoke test still opens one, as a draft, so the
-# new version is visible; it needs manual work first.
+# new version is visible; it needs manual work first. (2026-10-30, after a
+# failed farmOS 4 update was marked ready and merged: a failure is now also in
+# the title and a red "smoke test" check on the commit, which the pull request
+# shows next to its merge button.)
 #
 # Closing a pull request without merging means "not this version": it isn't
 # reopened, until an even newer major version comes out. An open one is
@@ -16,6 +19,7 @@ set -eu
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
 DRY_RUN=${DRY_RUN:-}
+FAILED="[smoke test failed] "
 BASE=${BASE:-origin/main}
 
 run() {
@@ -37,7 +41,8 @@ for addon in farmos foundry_vtt matrix matrix_call_relay matrix_group_calls matr
     state=""
     if [ -z "$DRY_RUN" ]; then
         state=$(gh pr list --state all --head "$branch" --json title,state \
-            | jq -r --arg t "$title" '[.[] | select(.title == $t) | .state][0] // ""')
+            | jq -r --arg t "$title" --arg f "$FAILED" \
+                '[.[] | select((.title | ltrimstr($f)) == $t) | .state][0] // ""')
     fi
     if [ "$state" = "CLOSED" ] || [ "$state" = "MERGED" ]; then
         echo "$title: already decided ($state)"
@@ -53,9 +58,13 @@ for addon in farmos foundry_vtt matrix matrix_call_relay matrix_group_calls matr
     if sh .github/scripts/smoke_test.sh "$addon" || sh .github/scripts/smoke_test.sh "$addon"; then
         result="Built and smoke-tested: **passed**."
         draft=""
+        status=success
+        shown="$title"
     else
-        result="Built and smoke-tested: **failed** (see the workflow log). It needs changes before merging."
+        result="Built and smoke-tested: **failed** (see the workflow log). **Don't merge this as it is**: Home Assistant would fail to install it. It needs changes first."
         draft="--draft"
+        status=failure
+        shown="$FAILED$title"
     fi
 
     git add "$addon"
@@ -67,12 +76,16 @@ for addon in farmos foundry_vtt matrix matrix_call_relay matrix_group_calls matr
         "$result Merging deploys it: Home Assistant installs it automatically where Auto update is on.")
 
     run git push -f origin "$branch"
+    # The result as a check on the commit: red or green beside the pull request's merge button
+    run gh api "repos/${GITHUB_REPOSITORY:-}/statuses/$(git rev-parse HEAD)" -f state="$status" \
+        -f context="smoke test" -f description="Built and started the add-on: $status" \
+        -f target_url="${GITHUB_SERVER_URL:-}/${GITHUB_REPOSITORY:-}/actions/runs/${GITHUB_RUN_ID:-}" > /dev/null
     if [ "$(gh pr list --state open --head "$branch" --json number --jq length 2>/dev/null || echo 0)" != "0" ] && [ -z "$DRY_RUN" ]; then
-        gh pr edit "$branch" --title "$title" --body "$body"
+        gh pr edit "$branch" --title "$shown" --body "$body"
         if [ -n "$draft" ]; then gh pr ready "$branch" --undo || true; else gh pr ready "$branch" || true; fi
     else
         # shellcheck disable=SC2086
-        run gh pr create --base main --head "$branch" --title "$title" --body "$body" $draft
+        run gh pr create --base main --head "$branch" --title "$shown" --body "$body" $draft
     fi
 done
 git checkout -q --detach "$BASE"
