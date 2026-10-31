@@ -1,5 +1,5 @@
 name: Homestead for farmOS
-version: "1.0.0"
+version: "2.0.0"
 slug: farmos
 description: Runs farmOS, the open-source farm and garden record keeper, with its own SQLite database
 url: https://github.com/danechristenson/home-assistant/tree/main/farmos
