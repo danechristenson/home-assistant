@@ -1,5 +1,5 @@
 name: Foundry VTT
-version: "1.0.5"
+version: "1.0.6"
 slug: foundry_vtt
 description: Foundry Virtual Tabletop, installed from your own license
 url: https://github.com/danechristenson/home-assistant/tree/main/foundry_vtt
@@ -23,7 +23,7 @@ hassio_api: true
 # Foundry's data folder (Config, Data, Logs) at /config, so maps, tokens and
 # modules can be copied in over Samba (addon_configs/<id>_foundry_vtt)
 map:
-  - addon_config:rw
+  - app_config:rw
 ports:
   30000/tcp: 30000
 ports_description:

@@ -1,0 +1,38 @@
+name: Smoke test
+
+# Pull requests that change an add-on: build it the way Home Assistant does and
+# check it starts (.github/scripts/smoke_test.sh). Shows as the "smoke test"
+# check beside the merge button. The major-update pull requests get the same
+# check from major_updates.sh, since pull requests opened by the workflow's
+# own token don't start workflows.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: smoke test
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Find the changed add-ons
+        id: changed
+        run: |
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+            | cut -d/ -f1 | sort -u \
+            | while read -r dir; do [ -f "$dir/config.yaml" ] && echo "$dir"; done)
+          echo "addons=$(echo $changed)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and smoke-test them
+        if: steps.changed.outputs.addons != ''
+        run: |
+          for addon in ${{ steps.changed.outputs.addons }}; do
+            sh .github/scripts/smoke_test.sh "$addon"
+          done
