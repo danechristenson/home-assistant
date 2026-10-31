@@ -20,6 +20,15 @@ const KEY_FILE = '/config/api_client.json';
 const CLIENT_ID = 'api_sync';
 const NAME = 'API sync';
 
+// farmOS 4 no longer turns these on in a default install (farmOS 3 did): the OAuth server, and the Farm
+// Manager role, whose module defines the farm_manager scope. A site upgraded from farmOS 3 has them already.
+$missing = array_values(array_filter(['farm_api_oauth', 'farm_manager'],
+  fn(string $module): bool => !\Drupal::moduleHandler()->moduleExists($module)));
+if ($missing) {
+  \Drupal::service('module_installer')->install($missing);
+  echo 'Enabled ' . implode(', ', $missing) . "\n";
+}
+
 $etm = \Drupal::entityTypeManager();
 $found = $etm->getStorage('consumer')->loadByProperties(['client_id' => CLIENT_ID]);
 $client = $found ? reset($found) : NULL;

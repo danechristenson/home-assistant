@@ -1,5 +1,5 @@
 name: Homestead for farmOS
-version: "2.0.0"
+version: "2.0.1"
 slug: farmos
 description: Runs farmOS, the open-source farm and garden record keeper, with its own SQLite database
 url: https://github.com/danechristenson/home-assistant/tree/main/farmos
@@ -20,4 +20,4 @@ ports_description:
 # live in /data, so the add-on's backups hold the whole farm. Its own folder
 # (/config, addon_configs on the host) holds the API key for sync scripts.
 map:
-  - addon_config:rw
+  - app_config:rw

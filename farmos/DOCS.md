@@ -16,6 +16,22 @@ variety and a log of what happened to it.
 On every start the add-on applies any database updates a new farmOS version
 brings, and rebuilds farmOS's caches.
 
+## Trimming farmOS
+
+farmOS's defaults suit a working farm: animals, equipment, seed stock,
+sensors and more, each with its own menu entries. To keep only what you use,
+uninstall the rest at `/admin/modules/uninstall` in the web UI. farmOS's own
+**Setup → Modules** page only adds modules. Type a module's name into the
+filter, tick it, and uninstall; a module others need stays greyed out until
+they're gone. Anything uninstalled can be added again under
+**Setup → Modules**.
+
+For a garden or orchard, these are usually enough: Plant, Land and Structure
+assets; Activity, Observation, Harvest, Input and Transplanting logs; the
+default roles and the land and structure types; and the CSV importer. The
+add-on's API key needs the Farm Manager role and the API's OAuth server, so it
+turns them back on at the next start if they're uninstalled.
+
 ## Importing
 
 With the CSV importer module, farmOS imports spreadsheets under
@@ -38,7 +54,21 @@ JSON:API (`/api/...`). Its changes show as the API sync account's.
 
 - **New key:** delete `api_client.json` and restart the add-on.
 - **No API access for scripts:** delete the `api_sync` client in farmOS
-  (**Administration → Configuration → Simple OAuth → Clients**).
+  (**Administration → Configuration → Web services → Consumers**).
+
+## Satellite maps (Mapbox)
+
+With the **Mapbox map layers** module and a Mapbox access token (under
+**Setup → Settings → Map → Mapbox**), farmOS shows Mapbox satellite imagery
+behind every map. Use a public (`pk.`) token. If your Mapbox account lets you
+create tokens, make one for farmOS with only the `styles:tiles` scope and a
+URL restriction for the exact address you open farmOS at, protocol and port
+included (for example `http://homeassistant.local:8096`). Mapbox can't
+restrict by IP address, so open farmOS by name.
+
+Each map view loads its tiles from Mapbox's Static Tiles API, which has a
+monthly free allowance; your browser keeps tiles for 12 hours. The token
+is only in pages for signed-in farmOS users.
 
 ## Privacy
 

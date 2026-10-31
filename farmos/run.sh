@@ -46,6 +46,11 @@ if [ -f "${SETTINGS}" ] && grep -q "^\$databases\['default'\]" "${SETTINGS}"; th
   drush updatedb -y || echo "Database updates failed: see above"
   drush cache:rebuild || echo "Cache rebuild failed: see above"
   drush php:script /provision_api.php || echo "Setting up the API key failed: see above"
+  # The keys OAuth tokens are signed with: made at install on farmOS 3, not on farmOS 4
+  if [ ! -f /data/keys/private.key ]; then
+    echo "Making the OAuth signing keys in /data/keys"
+    drush simple-oauth:generate-keys /data/keys || echo "Making the OAuth keys failed: see above"
+  fi
 else
   echo "farmOS isn't installed yet: open the web UI and choose SQLite, with the database file /data/db/farmos.sqlite"
 fi

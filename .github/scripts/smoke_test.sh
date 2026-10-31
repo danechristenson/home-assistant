@@ -157,11 +157,15 @@ JS
         wait_for http://127.0.0.1:18096/core/install.php || fail "installer did not respond"
         curl -fsS http://127.0.0.1:18096/core/install.php | grep -q "SQLite" || fail "installer offers no SQLite"
         # Installed (as the installer would with SQLite), then restarted: the private files path, the
-        # updates and the API key
+        # updates and the API key. (Drush 13 / Drupal 11, farmOS 4: an SQLite URL needs a host, so
+        # sqlite://localhost//absolute/path)
         docker exec "$NAME" runuser -u www-data -- /opt/drupal/vendor/bin/drush --root=/opt/drupal/web \
-            site:install farm --db-url=sqlite:///data/db/farmos.sqlite --site-name=Smoke \
+            site:install farm --db-url=sqlite://localhost//data/db/farmos.sqlite --site-name=Smoke \
             --account-name=admin --account-pass="$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')" -y \
             > /dev/null 2>&1 || fail "farmOS did not install"
+        # (farmOS 4's minimal install has no asset types; the web installer offers plants and the rest)
+        docker exec "$NAME" runuser -u www-data -- /opt/drupal/vendor/bin/drush --root=/opt/drupal/web \
+            pm:enable -y farm_plant > /dev/null 2>&1 || fail "could not enable plants"
         docker restart "$NAME" > /dev/null
         wait_for http://127.0.0.1:18096/user/login || fail "farmOS did not come back after installing"
         docker logs "$NAME" 2>&1 | grep -q "private files path" || fail "private files path not set"
