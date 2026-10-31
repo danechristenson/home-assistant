@@ -10,6 +10,6 @@ FROM ${BUILD_FROM}
 # to www-data and runs drush as www-data itself, and Apache drops its workers
 # to www-data as it did on farmOS 3
 USER root
-COPY run.sh provision_api.php /
+COPY run.sh provision_api.php forget_missing_modules.php /
 RUN chmod +x /run.sh
 CMD ["/run.sh"]

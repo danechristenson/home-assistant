@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.1.1
+
+- Fix upgrading a farmOS 3 site that had Field Kit installed: farmOS 4 no
+  longer includes it, and Drupal won't install another module while one listed
+  as installed is missing, so farmOS 4's database updates stopped partway and
+  left the site in maintenance mode. Before the updates, the add-on now drops
+  installed modules whose code is gone, as Drupal recommends, and logs which.
+- After the database updates succeed, the site leaves maintenance mode, which
+  failed updates leave on. (To keep farmOS in maintenance mode on purpose,
+  turn it on again after the add-on starts.)
+
 ## 2.1.0
 
 - HTTPS on farmOS's own port: the new `ssl` option serves port 8096 over HTTPS
