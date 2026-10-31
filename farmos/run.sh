@@ -103,7 +103,14 @@ if [ -f "${SETTINGS}" ] && grep -q "^\$databases\['default'\]" "${SETTINGS}"; th
   # Any database updates a new farmOS version brings, then the caches (also
   # how Drupal picks up a settings.php change)
   echo "Applying farmOS database updates and rebuilding caches"
-  drush updatedb -y || echo "Database updates failed: see above"
+  drush php:script /forget_missing_modules.php || echo "Checking for removed modules failed: see above"
+  # Updates put the site in maintenance mode and leave it there if they fail
+  # (also across restarts), so once they succeed it's switched off
+  if drush updatedb -y; then
+    drush state:set system.maintenance_mode 0 --input-format=integer > /dev/null
+  else
+    echo "Database updates failed: see above (farmOS stays in maintenance mode until they succeed)"
+  fi
   drush cache:rebuild || echo "Cache rebuild failed: see above"
   drush php:script /provision_api.php || echo "Setting up the API key failed: see above"
   # The keys OAuth tokens are signed with: made at install on farmOS 3, not on farmOS 4
