@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.2
+
+- Fix the dashboard's Metrics showing 0 assets, and the location hierarchy
+  showing no locations: on SQLite, farmOS 4's query for assets that aren't
+  archived (`archived = FALSE`) matches none, though `archived = 0` does. The
+  add-on's image patches those two queries to compare with 0 and 1.
+
 ## 2.1.1
 
 - Fix upgrading a farmOS 3 site that had Field Kit installed: farmOS 4 no
