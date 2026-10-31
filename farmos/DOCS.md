@@ -56,6 +56,41 @@ JSON:API (`/api/...`). Its changes show as the API sync account's.
 - **No API access for scripts:** delete the `api_sync` client in farmOS
   (**Administration → Configuration → Web services → Consumers**).
 
+## HTTPS
+
+The web UI is plain HTTP on port 8096 until you choose one (or both) of these.
+
+### On farmOS's own port
+
+Turn on **HTTPS** (`ssl`) in the add-on's configuration. Port 8096 then
+serves HTTPS with the certificate in Home Assistant's `/ssl` folder (by
+default the Let's Encrypt add-on's `fullchain.pem` and `privkey.pem`), so
+farmOS opens at `https://<your Home Assistant address>:8096`, using a name the
+certificate covers. Plain `http://` stops working on that port.
+
+Apache reads the certificate when the add-on starts, so restart the add-on
+after the certificate is renewed (an automation can do it, for example when
+a Certificate Expiry sensor for port 8096 shows the new date).
+
+### Behind a reverse proxy
+
+To open farmOS at its own name, such as `https://farmos.example.com`, through
+the NGINX Proxy Manager add-on:
+
+1. Turn on **Behind a reverse proxy** (`reverse_proxy`). farmOS then builds
+   its links from the address and `https://` the proxy received. The default
+   **Trusted proxy addresses**, `172.30.32.0/23`, is Home Assistant's internal
+   network, where NGINX Proxy Manager runs; add your proxy's address if it runs
+   on another machine.
+2. In NGINX Proxy Manager, add a proxy host for that name, forwarding to
+   `http://<Home Assistant IP>:8096` (or `https://` if HTTPS is also on here),
+   with a certificate for the name and **Force SSL** on.
+3. To keep farmOS to your home network and VPN, give the proxy host an
+   **Access List** that allows only those address ranges.
+
+Both can be on at once: `https://<Home Assistant address>:8096` directly and
+`https://farmos.example.com` through the proxy.
+
 ## Satellite maps (Mapbox)
 
 With the **Mapbox map layers** module and a Mapbox access token (under
@@ -63,8 +98,9 @@ With the **Mapbox map layers** module and a Mapbox access token (under
 behind every map. Use a public (`pk.`) token. If your Mapbox account lets you
 create tokens, make one for farmOS with only the `styles:tiles` scope and a
 URL restriction for the exact address you open farmOS at, protocol and port
-included (for example `http://homeassistant.local:8096`). Mapbox can't
-restrict by IP address, so open farmOS by name.
+included (for example `https://homeassistant.local:8096`). Mapbox can't
+restrict by IP address, so open farmOS by name. A token can list several
+addresses, for example port 8096 and a proxy's name.
 
 Each map view loads its tiles from Mapbox's Static Tiles API, which has a
 monthly free allowance; your browser keeps tiles for 12 hours. The token
@@ -79,8 +115,9 @@ Mapbox instead.
 
 ## Notes
 
-- The web UI is plain HTTP on your network. To reach it from outside, put it
-  behind a reverse proxy with HTTPS rather than forwarding the port.
+- Without the HTTPS options the web UI is plain HTTP on your network (see
+  [HTTPS](#https)). To reach it from outside, put it behind a reverse proxy
+  rather than forwarding the port.
 - SQLite suits a household or a small farm. For many users at once, farmOS
   recommends PostgreSQL.
 

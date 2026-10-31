@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.0
+
+- HTTPS on farmOS's own port: the new `ssl` option serves port 8096 over HTTPS
+  with the certificate files in Home Assistant's `/ssl` (`certfile`,
+  `keyfile`). The web UI link and the watchdog follow it.
+- Behind a reverse proxy: the new `reverse_proxy` option makes farmOS trust
+  the `X-Forwarded-*` headers from `trusted_proxies` (by default Home
+  Assistant's internal network, where NGINX Proxy Manager runs), so its links
+  use the proxy's name and `https://`. Both options can be on at once.
+
 ## 2.0.1
 
 - Fix the build on farmOS 4: its image runs as `www-data`, so the add-on's setup

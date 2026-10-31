@@ -1,2 +1,32 @@
+configuration:
+  ssl:
+    name: HTTPS
+    description: >-
+      Serve farmOS over HTTPS on its port, with the certificate files below,
+      so it opens at https://<your Home Assistant address>:8096. Plain http://
+      stops working on that port while this is on.
+  certfile:
+    name: Certificate file
+    description: >-
+      Name of the certificate file in Home Assistant's /ssl folder. The
+      default matches the Let's Encrypt add-on.
+  keyfile:
+    name: Private key file
+    description: >-
+      Name of the private key file in Home Assistant's /ssl folder. The
+      default matches the Let's Encrypt add-on.
+  reverse_proxy:
+    name: Behind a reverse proxy
+    description: >-
+      Turn on when farmOS is reached through a reverse proxy such as NGINX
+      Proxy Manager (for example https://farmos.example.com), so farmOS builds
+      its links with the address and https:// the proxy received.
+  trusted_proxies:
+    name: Trusted proxy addresses
+    description: >-
+      Addresses or ranges allowed to tell farmOS the original address. The
+      default, 172.30.32.0/23, is Home Assistant's internal network, where the
+      NGINX Proxy Manager add-on runs. Add your proxy's address if it runs
+      elsewhere.
 network:
   80/tcp: farmOS web interface
