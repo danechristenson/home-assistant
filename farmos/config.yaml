@@ -1,5 +1,5 @@
 name: Homestead for farmOS
-version: "2.0.1"
+version: "2.1.0"
 slug: farmos
 description: Runs farmOS, the open-source farm and garden record keeper, with its own SQLite database
 url: https://github.com/danechristenson/home-assistant/tree/main/farmos
@@ -9,9 +9,10 @@ arch:
 startup: application
 boot: auto
 # farmOS (Drupal) builds its links from the address it's served at, so it gets
-# its own port rather than Home Assistant's ingress path
-webui: http://[HOST]:[PORT:80]
-watchdog: http://[HOST]:[PORT:80]/user/login
+# its own port rather than Home Assistant's ingress path. With ssl on, that
+# port serves HTTPS instead of HTTP.
+webui: "[PROTO:ssl]://[HOST]:[PORT:80]"
+watchdog: "[PROTO:ssl]://[HOST]:[PORT:80]/user/login"
 ports:
   80/tcp: 8096
 ports_description:
@@ -21,3 +22,19 @@ ports_description:
 # (/config, addon_configs on the host) holds the API key for sync scripts.
 map:
   - app_config:rw
+  - ssl
+options:
+  ssl: false
+  certfile: fullchain.pem
+  keyfile: privkey.pem
+  reverse_proxy: false
+  # Home Assistant's internal network: the NGINX Proxy Manager add-on
+  trusted_proxies:
+    - 172.30.32.0/23
+schema:
+  ssl: bool
+  certfile: str
+  keyfile: str
+  reverse_proxy: bool
+  trusted_proxies:
+    - str

@@ -153,7 +153,13 @@ JS
         ;;
     farmos)
         mkdir -p "$DATA/config"
-        docker run -d --name "$NAME" -p 18096:80 -v "$DATA:/data:z" -v "$DATA/config:/config:z" "$IMAGE" > /dev/null
+        # A throwaway certificate for the HTTPS check below, as Home Assistant's /ssl
+        mkdir -p "$DATA/ssl"
+        openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=localhost" \
+            -keyout "$DATA/ssl/privkey.pem" -out "$DATA/ssl/fullchain.pem" > /dev/null 2>&1
+        chmod 644 "$DATA/ssl/privkey.pem"
+        docker run -d --name "$NAME" -p 18096:80 -v "$DATA:/data:z" -v "$DATA/config:/config:z" \
+            -v "$DATA/ssl:/ssl:ro,z" "$IMAGE" > /dev/null
         wait_for http://127.0.0.1:18096/core/install.php || fail "installer did not respond"
         curl -fsS http://127.0.0.1:18096/core/install.php | grep -q "SQLite" || fail "installer offers no SQLite"
         # Installed (as the installer would with SQLite), then restarted: the private files path, the
@@ -182,6 +188,24 @@ JS
         docker restart "$NAME" > /dev/null
         wait_for http://127.0.0.1:18096/user/login || fail "farmOS did not come back"
         docker logs "$NAME" 2>&1 | grep -q "API key: ready" || fail "a restart replaced the API key"
+        # HTTPS on its own port (written as root: farmOS's www-data owns /data by now)
+        echo '{"ssl": true, "certfile": "fullchain.pem", "keyfile": "privkey.pem", "reverse_proxy": false, "trusted_proxies": []}' \
+            | docker exec -i "$NAME" sh -c 'cat > /data/options.json'
+        docker restart "$NAME" > /dev/null
+        for _ in $(seq 1 30); do curl -kfsS -o /dev/null https://127.0.0.1:18096/user/login && break; sleep 2; done
+        curl -kfsS -o /dev/null https://127.0.0.1:18096/user/login || fail "HTTPS did not answer"
+        # Behind a reverse proxy (the test's own address standing in for it): links use what the proxy received
+        echo '{"ssl": false, "certfile": "fullchain.pem", "keyfile": "privkey.pem", "reverse_proxy": true, "trusted_proxies": ["172.16.0.0/12"]}' \
+            | docker exec -i "$NAME" sh -c 'cat > /data/options.json'
+        docker restart "$NAME" > /dev/null
+        wait_for http://127.0.0.1:18096/user/login || fail "farmOS did not come back with HTTPS off"
+        # (Drupal's redirects are full addresses, built from what it believes it was reached at)
+        LOCATION=$(curl -sS -o /dev/null -w "%{redirect_url}" -H "X-Forwarded-Proto: https" \
+            -H "X-Forwarded-Host: farmos.example.com" -H "X-Forwarded-Port: 443" http://127.0.0.1:18096/user)
+        [ "$LOCATION" = "https://farmos.example.com/user/login" ] || fail "farmOS ignores its reverse proxy ($LOCATION)"
+        # ...and only from a trusted address: without the headers it's the address it was reached at
+        LOCATION=$(curl -sS -o /dev/null -w "%{redirect_url}" http://127.0.0.1:18096/user)
+        [ "$LOCATION" = "http://127.0.0.1:18096/user/login" ] || fail "farmOS's own address is wrong ($LOCATION)"
         ;;
     game_waker)
         # A stand-in Supervisor: the "smoke" game is stopped until something
