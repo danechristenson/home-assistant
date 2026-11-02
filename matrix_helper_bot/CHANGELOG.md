@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.3
+
+- Update github.com/petermattis/goid v0.0.0-20260918085751-abfca077860b → v0.0.0-20261102161117-2a3fffa09998.
+- Update golang.org/x/net v0.61.0 → v0.62.0.
+
 ## 1.4.2
 
 - Update github.com/mattn/go-colorable v0.1.14 → v0.1.16.
