@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.10.7
+
+- Update Bedrock server 1.26.62.1 → 1.26.63.1.
+
 ## 2026.10.6
 
 - Update Bedrock server 1.26.61.1 → 1.26.62.1.
