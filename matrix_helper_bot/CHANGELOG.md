@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.4
+
+- Update github.com/mattn/go-sqlite3 v1.14.52 → v1.14.53.
+- Update github.com/petermattis/goid v0.0.0-20261102161117-2a3fffa09998 → v0.0.0-20261109124353-7cfa343ad0ab.
+- Update github.com/tidwall/gjson v1.20.0 → v1.20.2.
+- Update github.com/tidwall/pretty v1.2.2 → v1.3.0.
+- Update github.com/tidwall/sjson v1.2.5 → v1.2.9.
+- Update golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e → v0.0.0-20261109185158-a52e3aef5920.
+- Update golang.org/x/sys v0.49.0 → v0.50.0.
+- Update golang.org/x/text v0.43.0 → v0.44.0.
+
 ## 1.4.3
 
 - Update github.com/petermattis/goid v0.0.0-20260918085751-abfca077860b → v0.0.0-20261102161117-2a3fffa09998.
