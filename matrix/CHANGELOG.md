@@ -1,5 +1,12 @@
 # Changelog
 
+## 26.9.3
+
+- Fix group calls being off after a reboot ("Missing matrix rtc_transport" when
+  starting a call). Both add-ons start together, and this one could start
+  before the Matrix Group Calls add-on was ready, leaving calls off until it
+  was restarted. It now waits up to 2 minutes for the call service.
+
 ## 26.9.2
 
 - Versions are now semantic (major.minor.patch) and the add-on's own; the upstream versions it runs are in the changelog. This version only changes the numbering.

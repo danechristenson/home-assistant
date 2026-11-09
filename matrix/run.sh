@@ -54,7 +54,17 @@ fi
 CALLS_CONF=/share/matrix-group-calls/calls.conf
 LIVEKIT_SERVICE_URL=
 if [ "$(option group_calls)" = "true" ]; then
-    LIVEKIT_SERVICE_URL=$(sed -nE 's#^livekit_service_url=(https://[A-Za-z0-9.-]+)$#\1#p' "$CALLS_CONF" 2>/dev/null || true)
+    # After a reboot both add-ons start together, and the Group Calls add-on
+    # only writes its file once LiveKit is up. Starting without it would leave
+    # calls off until this add-on is restarted, so give it a moment.
+    waited=0
+    while :; do
+        LIVEKIT_SERVICE_URL=$(sed -nE 's#^livekit_service_url=(https://[A-Za-z0-9.-]+)$#\1#p' "$CALLS_CONF" 2>/dev/null || true)
+        [ -n "$LIVEKIT_SERVICE_URL" ] || [ "$waited" -ge 120 ] && break
+        [ "$waited" -eq 0 ] && echo "[INFO] Waiting up to 2 minutes for the Matrix Group Calls add-on..."
+        sleep 2
+        waited=$((waited + 2))
+    done
     if [ -z "$LIVEKIT_SERVICE_URL" ]; then
         if [ -e "$CALLS_CONF" ]; then
             echo "[WARN] 'Group calls' is on, but $CALLS_CONF is unreadable or invalid." >&2
