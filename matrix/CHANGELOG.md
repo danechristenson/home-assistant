@@ -1,5 +1,10 @@
 # Changelog
 
+## 26.9.4
+
+- Update Continuwuity v26.9.1 → v26.9.3.
+- Update Element Web v1.12.33 → v1.12.34.
+
 ## 26.9.3
 
 - Fix group calls being off after a reboot ("Missing matrix rtc_transport" when

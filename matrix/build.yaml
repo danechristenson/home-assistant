@@ -1,6 +1,6 @@
 build_from:
-  amd64: ghcr.io/continuwuity/continuwuity:v26.9.1
-  aarch64: ghcr.io/continuwuity/continuwuity:v26.9.1
+  amd64: ghcr.io/continuwuity/continuwuity:v26.9.3
+  aarch64: ghcr.io/continuwuity/continuwuity:v26.9.3
 args:
-  ELEMENT_VERSION: v1.12.33
+  ELEMENT_VERSION: v1.12.34
   QRCODE_VERSION: 2.0.4
