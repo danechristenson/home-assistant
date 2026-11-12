@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.13.12
+
+- Update lk-jwt-service 0.9.0 → 0.10.0.
+
 ## 1.13.11
 
 - Update LiveKit v1.13.10 → v1.13.11.

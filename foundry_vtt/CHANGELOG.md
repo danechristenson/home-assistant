@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.7
+
+- Update Node.js 26.13.0 → 26.13.1.
+
 ## 1.0.6
 
 - Map the add-on's own folder as `app_config`, the Supervisor's current name for
