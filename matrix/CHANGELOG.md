@@ -1,5 +1,9 @@
 # Changelog
 
+## 26.9.6
+
+- Update Continuwuity v26.9.3 → v26.9.4.
+
 ## 26.9.5
 
 - Update Element Web v1.12.34 → v1.12.35.
