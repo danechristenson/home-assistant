@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.5
+
+- Update mautrix-go v0.32.0 → v0.33.0.
+- Update github.com/tidwall/gjson v1.20.2 → v1.20.4.
+- Update go.mau.fi/util v0.11.0 → v0.11.1.
+- Update golang.org/x/crypto v0.58.0 → v0.59.0.
+- Update golang.org/x/exp v0.0.0-20261109185158-a52e3aef5920 → v0.0.0-20261113113407-e3970619a1a4.
+
 ## 1.4.4
 
 - Update github.com/mattn/go-sqlite3 v1.14.52 → v1.14.53.

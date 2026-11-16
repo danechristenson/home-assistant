@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026.10.9
+
+- Update Bedrock server 1.26.63.1 → 1.26.65.1.
+
 ## 2026.10.8
 
 - Update itzg/minecraft-bedrock-server 2026.10.3 → 2026.11.0.
