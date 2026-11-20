@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.18.3
+
+- Update coturn 4.19.1 → 4.19.2.
+
 ## 4.18.2
 
 - Update coturn 4.19.0 → 4.19.1.

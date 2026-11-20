@@ -1,5 +1,5 @@
 name: Matrix Call Relay
-version: "4.18.2"
+version: "4.18.3"
 slug: matrix_call_relay
 description: Lets Matrix voice and video calls connect between different networks
 url: https://github.com/danechristenson/home-assistant/tree/main/matrix_call_relay

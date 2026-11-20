@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.3
+
+- Update farmOS 4.0.9 → 4.0.12.
+
 ## 2.1.2
 
 - Fix the dashboard's Metrics showing 0 assets, and the location hierarchy
