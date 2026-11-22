@@ -427,35 +427,37 @@ def update_foundry():
 
 def latest_npmplus():
     """NPMplus's newest release (dated: 2026-11-18-r1; its betas are
-    pre-releases), once its image is on Docker Hub."""
+    pre-releases) and its image's digest, once the image is on Docker Hub."""
     tag = get_json("https://api.github.com/repos/ZoeyVid/NPMplus/releases/latest")["tag_name"]
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}-r\d+", tag):
         return None
     try:
-        get_json(f"https://hub.docker.com/v2/repositories/zoeyvid/npmplus/tags/{tag}")
+        image = get_json(f"https://hub.docker.com/v2/repositories/zoeyvid/npmplus/tags/{tag}")
     except urllib.error.HTTPError:
         return None
-    return tag
+    return tag, image["digest"]
 
 
 def update_npmplus():
-    """The image runs as it is, so a new NPMplus release is the whole update.
-    NPMplus rewrites every host's nginx files when it starts with a new
-    version, as it does with its own compose file."""
+    """The image runs as it is, pinned by tag and digest in the Dockerfile, so
+    a new NPMplus release is the whole update. NPMplus rewrites every host's
+    nginx files when it starts with a new version, as with its own compose
+    file. A tag pushed again with a new digest is not followed."""
     folder = ROOT / "npmplus"
-    build = folder / "build.yaml"
-    text = build.read_text()
-    current = read_value(text, r"zoeyvid/npmplus:(\d{4}-\d{2}-\d{2}-r\d+)$")
-    latest = pick_calendar(latest_npmplus() or current, current)
-    if version_key(latest) <= version_key(current):
+    dockerfile = folder / "Dockerfile"
+    text = dockerfile.read_text()
+    pinned = read_value(text, r"^FROM docker\.io/zoeyvid/npmplus:(\S+)$")
+    current = pinned.split("@")[0]
+    latest = latest_npmplus()
+    if MAJOR or not latest or version_key(latest[0]) <= version_key(current):
         return False
-    build.write_text(text.replace(f"zoeyvid/npmplus:{current}", f"zoeyvid/npmplus:{latest}"))
+    dockerfile.write_text(text.replace(f"zoeyvid/npmplus:{pinned}", f"zoeyvid/npmplus:{latest[0]}@{latest[1]}"))
 
     addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
     new_version = bump_version("npmplus")
     set_addon_version("npmplus", new_version)
-    add_changelog_entry("npmplus", new_version, [f"Update NPMplus {current} → {latest}."])
-    print(f"npmplus: {addon_version} -> {new_version} (NPMplus {latest})", file=sys.stderr)
+    add_changelog_entry("npmplus", new_version, [f"Update NPMplus {current} → {latest[0]}."])
+    print(f"npmplus: {addon_version} -> {new_version} (NPMplus {latest[0]})", file=sys.stderr)
     return True
 
 

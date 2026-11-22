@@ -44,10 +44,11 @@ These ports must be free on Home Assistant.
 
 NPMplus includes files from its `custom_nginx` folder, such as
 `http_top.conf` (in nginx's `http` block) or `server_proxy.conf` (in every
-proxy host); see NPMplus's README for the list. Here that folder is
-`/addon_configs/<this add-on>/custom_nginx`, reachable with the Samba, SSH or
-File editor add-ons. Restart the add-on after changing them. In nginx, the
-folder is `/data/custom_nginx` (e.g. `include /data/custom_nginx/blocklist.conf;`).
+proxy host); see NPMplus's README for the list. Here that folder is the
+add-on's config folder, `/addon_configs/<this add-on>`, reachable with the
+Samba, SSH or File editor add-ons. Restart the add-on after changing them.
+In nginx, the folder is `/data/custom_nginx` (e.g.
+`include /data/custom_nginx/blocklist.conf;`).
 
 ## Updates
 
@@ -60,10 +61,11 @@ asks for its password).
 ## Moving in from another NPMplus
 
 Copy the other NPMplus's data folder (the one mounted at `/data`, with
-`npmplus/database.sqlite` in it) to `/addon_configs/<this add-on>/import`
-before this add-on's first start. On that start it copies everything in,
-then deletes `import`, since it holds your certificates' private keys. It
-never imports over hosts already here.
+`npmplus/database.sqlite` in it) to `import` in
+`/addon_configs/<this add-on>` before this add-on's first start, and its
+custom nginx files to `/addon_configs/<this add-on>` itself. On that start
+it copies the data in, then deletes `import`, since it holds your
+certificates' private keys. It never imports over hosts already here.
 
 From NGINX Proxy Manager, add your hosts again in the web UI.
 

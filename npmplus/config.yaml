@@ -13,9 +13,11 @@ boot: auto
 # Like NPMplus's own compose file: it sees visitors' real addresses and listens
 # on 80, 443 (TCP, and UDP for HTTP/3) and 81 (web UI, HTTPS) itself
 host_network: true
-# /config (addon_configs/<this add-on>): custom nginx files, in custom_nginx/
+# The add-on's config folder (addon_configs/<this add-on>) is NPMplus's
+# custom_nginx folder: custom nginx files, editable over Samba or SSH
 map:
   - type: addon_config
     read_only: false
+    path: /data/custom_nginx
 options: {}
 schema: {}
