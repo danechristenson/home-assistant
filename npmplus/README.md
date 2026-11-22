@@ -14,7 +14,8 @@ NPMplus's own image unchanged.
 - Proxy hosts, access lists, certificates (including DNS challenges for
   wildcard certificates) from the web UI on port 81
 - Custom nginx files in the add-on's config folder
-- Sees visitors' real addresses (host network), for access lists and logs
+- Sees visitors' real addresses, for access lists and logs, without the host
+  network
 
 See the **Documentation** tab for setup.
 

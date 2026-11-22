@@ -25,12 +25,10 @@ detail; this add-on runs its image unchanged.
    goes (scheme, address, port), and the certificate.
 5. Forward port 443 (TCP, and UDP for HTTP/3) on your router to Home
    Assistant. Never forward port 81: it controls every host and
-   certificate.
+   certificate. If you use access lists by address, check from outside
+   (e.g. with your phone off Wi-Fi) that they keep out who they should.
 
 ## Ports
-
-NPMplus uses the host network, so it sees visitors' real addresses (for
-access lists and logs). It listens on:
 
 | Port | What |
 | ---- | ---- |
@@ -38,7 +36,9 @@ access lists and logs). It listens on:
 | 443 TCP and UDP | HTTPS and HTTP/3 |
 | 81 | The web UI (HTTPS); your home network only |
 
-These ports must be free on Home Assistant.
+They can be changed on the add-on's **Network** settings, if another add-on
+already uses one. NPMplus still sees visitors' real addresses, for access
+lists and logs.
 
 ## Custom nginx files
 
