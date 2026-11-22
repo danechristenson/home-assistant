@@ -1,0 +1,21 @@
+name: NPMplus
+version: "1.0.0"
+slug: npmplus
+description: Reverse proxy with HTTPS certificates and a web UI (NPMplus, a fork of Nginx Proxy Manager)
+url: https://github.com/danechristenson/home-assistant/tree/main/npmplus
+arch:
+  - amd64
+  - aarch64
+# The NPMplus image starts with its own init (tini)
+init: false
+startup: services
+boot: auto
+# Like NPMplus's own compose file: it sees visitors' real addresses and listens
+# on 80, 443 (TCP, and UDP for HTTP/3) and 81 (web UI, HTTPS) itself
+host_network: true
+# /config (addon_configs/<this add-on>): custom nginx files, in custom_nginx/
+map:
+  - type: addon_config
+    read_only: false
+options: {}
+schema: {}

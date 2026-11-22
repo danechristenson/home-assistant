@@ -1,0 +1,3 @@
+build_from:
+  amd64: zoeyvid/npmplus:2026-11-18-r1
+  aarch64: zoeyvid/npmplus:2026-11-18-r1

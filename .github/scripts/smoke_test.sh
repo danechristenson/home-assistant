@@ -282,6 +282,41 @@ JSON
         docker logs "$NAME" 2>&1 | grep -q "Smoke: $HOST_IP is trying to join (UDP 23456, 4 bytes, starting 6a6f696e); starting it" \
             || fail "join not logged: $(docker logs "$NAME" 2>&1 | tail -5)"
         ;;
+    npmplus)
+        mkdir -p "$DATA/config/custom_nginx"
+        echo '{}' > "$DATA/options.json"
+        # A custom nginx file in the add-on's config folder must reach nginx
+        echo "# smoke-custom-nginx" > "$DATA/config/custom_nginx/http_top.conf"
+        start_npmplus() {
+            docker run -d --name "$NAME" -e TZ=Etc/UTC -p 18080:80 -p 18443:443 -p 18081:81 \
+                -v "$1:/data:z" -v "$1/config:/config:z" "$IMAGE" > /dev/null
+            for _ in $(seq 1 60); do
+                curl -kfsS -o /dev/null https://localhost:18081/ && return 0
+                sleep 2
+            done
+            fail "NPMplus web UI did not respond"
+        }
+        start_npmplus "$DATA"
+        curl -kfsS https://localhost:18081/api/ | grep -q '"status": *"OK"' || fail "NPMplus API not OK: $(curl -ksS https://localhost:18081/api/)"
+        curl -kfsS -o /dev/null https://localhost:18443/ || fail "default site on 443 did not respond"
+        [ "$(docker exec "$NAME" readlink /data/custom_nginx)" = /config/custom_nginx ] || fail "custom_nginx not in /config"
+        docker exec "$NAME" nginx -T 2>/dev/null | grep -q "smoke-custom-nginx" || fail "custom nginx file not loaded"
+        docker exec "$NAME" test -s /data/npmplus/database.sqlite || fail "no database"
+        # Moving in from another NPMplus: its data in /config/import is copied in once, then removed
+        docker stop "$NAME" > /dev/null
+        docker rm "$NAME" > /dev/null
+        NEW=$(mktemp -d)
+        chmod 755 "$NEW"
+        echo '{}' > "$NEW/options.json"
+        # (as root: the files are NPMplus's)
+        docker run --rm --entrypoint sh -v "$DATA:/old:z" -v "$NEW:/new:z" "$IMAGE" -c \
+            'mkdir -p /new/config/import && cp -a /old/. /new/config/import/ && rm -rf /new/config/import/config'
+        start_npmplus "$NEW"
+        docker logs "$NAME" 2>&1 | grep -q "Imported; /config/import removed" || fail "import not logged"
+        docker exec "$NAME" test ! -e /config/import || fail "/config/import left behind"
+        docker exec "$NAME" test -s /data/npmplus/database.sqlite || fail "database not imported"
+        docker exec "$NAME" sh -c 'grep -q "^{}$" /data/options.json' || fail "options.json overwritten by the import"
+        ;;
     *)
         fail "no smoke test for $ADDON"
         ;;
