@@ -290,14 +290,15 @@ JSON
         start_npmplus() {
             docker run -d --name "$NAME" -e TZ=Etc/UTC -p 18080:80 -p 18443:443 -p 18081:81 \
                 -v "$1:/data:z" -v "$1/config:/config:z" "$IMAGE" > /dev/null
+            # (the web UI answers before the API behind it is ready)
             for _ in $(seq 1 60); do
-                curl -kfsS -o /dev/null https://localhost:18081/ && return 0
+                curl -ksS https://localhost:18081/api/ 2>/dev/null | grep -q '"status": *"OK"' && return 0
                 sleep 2
             done
-            fail "NPMplus web UI did not respond"
+            fail "NPMplus API not OK: $(curl -ksS https://localhost:18081/api/)"
         }
         start_npmplus "$DATA"
-        curl -kfsS https://localhost:18081/api/ | grep -q '"status": *"OK"' || fail "NPMplus API not OK: $(curl -ksS https://localhost:18081/api/)"
+        curl -kfsS -o /dev/null https://localhost:18081/ || fail "NPMplus web UI did not respond"
         curl -kfsS -o /dev/null https://localhost:18443/ || fail "default site on 443 did not respond"
         [ "$(docker exec "$NAME" readlink /data/custom_nginx)" = /config/custom_nginx ] || fail "custom_nginx not in /config"
         docker exec "$NAME" nginx -T 2>/dev/null | grep -q "smoke-custom-nginx" || fail "custom nginx file not loaded"
