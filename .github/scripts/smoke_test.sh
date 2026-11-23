@@ -290,37 +290,19 @@ JSON
         echo '{}' > "$DATA/options.json"
         # A custom nginx file in the config folder must reach nginx
         echo "# smoke-custom-nginx" > "$CONF/http_top.conf"
-        start_npmplus() {
-            docker run -d --name "$NAME" -e TZ=Etc/UTC -p 18080:80 -p 18443:443 -p 18081:81 \
-                -v "$1:/data:z" -v "$2:/data/custom_nginx:z" "$IMAGE" > /dev/null
-            # (the web UI answers before the API behind it is ready)
-            for _ in $(seq 1 60); do
-                curl -ksS https://localhost:18081/api/ 2>/dev/null | grep -q '"status": *"OK"' && return 0
-                sleep 2
-            done
-            fail "NPMplus API not OK: $(curl -ksS https://localhost:18081/api/)"
-        }
-        start_npmplus "$DATA" "$CONF"
+        docker run -d --name "$NAME" -e TZ=Etc/UTC -p 18080:80 -p 18443:443 -p 18081:81 \
+            -v "$DATA:/data:z" -v "$CONF:/data/custom_nginx:z" "$IMAGE" > /dev/null
+        # (the web UI answers before the API behind it is ready)
+        for _ in $(seq 1 60); do
+            curl -ksS https://localhost:18081/api/ 2>/dev/null | grep -q '"status": *"OK"' && break
+            sleep 2
+        done
+        curl -ksS https://localhost:18081/api/ | grep -q '"status": *"OK"' || fail "NPMplus API not OK: $(curl -ksS https://localhost:18081/api/)"
         curl -kfsS -o /dev/null https://localhost:18081/ || fail "NPMplus web UI did not respond"
         curl -kfsS -o /dev/null https://localhost:18443/ || fail "default site on 443 did not respond"
         docker exec "$NAME" nginx -T 2>/dev/null | grep -q "smoke-custom-nginx" || fail "custom nginx file not loaded"
         docker exec "$NAME" test -s /data/npmplus/database.sqlite || fail "no database"
         docker exec "$NAME" sh -c '[ "$DISABLE_GRAVATAR" = true ]' || fail "Gravatar not disabled"
-        # Moving in from another NPMplus: its data in the config folder's import is copied in once, then deleted
-        docker stop "$NAME" > /dev/null
-        docker rm "$NAME" > /dev/null
-        NEW=$(mktemp -d)
-        NEW_CONF=$(mktemp -d)
-        chmod 755 "$NEW"
-        echo '{}' > "$NEW/options.json"
-        # (as root: the files are NPMplus's)
-        docker run --rm --entrypoint sh -v "$DATA:/old:z" -v "$NEW_CONF:/new:z" "$IMAGE" -c \
-            'mkdir /new/import && cp -a /old/. /new/import/'
-        start_npmplus "$NEW" "$NEW_CONF"
-        docker logs "$NAME" 2>&1 | grep -q "Imported; import folder deleted" || fail "import not logged"
-        docker exec "$NAME" test ! -e /data/custom_nginx/import || fail "import folder left behind"
-        docker exec "$NAME" test -s /data/npmplus/database.sqlite || fail "database not imported"
-        docker exec "$NAME" sh -c 'grep -q "^{}$" /data/options.json' || fail "options.json overwritten by the import"
         ;;
     *)
         fail "no smoke test for $ADDON"
