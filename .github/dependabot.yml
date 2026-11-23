@@ -1,5 +1,8 @@
 # Keeps the workflow's actions (e.g. actions/checkout) current; add-on
-# dependencies are updated daily by .github/workflows/update-addons.yml
+# dependencies are updated daily by .github/workflows/update-addons.yml.
+# The workflows pin each action to a full commit SHA, with its version in a
+# comment (a tag can be moved to other code; a commit can't); Dependabot
+# updates both together.
 version: 2
 updates:
   - package-ecosystem: github-actions
