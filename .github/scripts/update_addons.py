@@ -6,9 +6,10 @@ build images for Matrix, coturn, LiveKit, lk-jwt-service, mautrix-go, Go and
 the Home Assistant base image for the helper bot, the itzg image, Mojang's
 Bedrock server and Go for Minecraft, Node.js for Foundry VTT, and NPMplus. On Mondays
 (or with UPDATE_GO_MODULES=1) it also updates all of the helper bot's Go
-modules. For each add-on whose dependencies changed, updates build.yaml (or
-the Dockerfile), the add-on version and the changelog, then prints the
-changed add-on folders (one per line) for the workflow to build and test.
+modules. For each add-on whose dependencies changed, updates its Dockerfile
+(where every version is pinned), the add-on version and the changelog, then
+prints the changed add-on folders (one per line) for the workflow to build and
+test.
 
 The daily run only updates within the current major version, straight to
 main. A new major version can break things (qrcode-generator 2.x moved its
@@ -107,11 +108,24 @@ def latest_busybox(current):
     return pick([m.group(1) for t in tags["results"] if (m := re.fullmatch(r"(\d+\.\d+)-musl", t["name"]))], current)
 
 
+def ghcr_architectures(repository, tag):
+    """The architectures a multi-arch image on ghcr.io is published for."""
+    token = get_json(f"https://ghcr.io/token?scope=repository:{repository}:pull")["token"]
+    try:
+        index = get_json(f"https://ghcr.io/v2/{repository}/manifests/{tag}", {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json",
+        })
+    except urllib.error.HTTPError:
+        return set()
+    return {m["platform"]["architecture"] for m in index.get("manifests", [])}
+
+
 def latest_ha_base(current):
-    """The Home Assistant base image follows Alpine's x.y; only once it is
-    published for both architectures."""
+    """The Home Assistant base image (multi-arch) follows Alpine's x.y; only
+    once it is published for both architectures."""
     alpine = latest_alpine(current)
-    if all(ghcr_tag_exists(f"home-assistant/{arch}-base", alpine) for arch in ("amd64", "aarch64")):
+    if {"amd64", "arm64"} <= ghcr_architectures("home-assistant/base", alpine):
         return alpine
     return current
 
@@ -162,14 +176,12 @@ def set_addon_version(folder, version):
 
 
 def update_matrix():
-    build = ROOT / "matrix" / "build.yaml"
-    text = build.read_text()
     dockerfile = ROOT / "matrix" / "Dockerfile"
     docker_text = dockerfile.read_text()
     current = {
-        "continuwuity": read_value(text, r"continuwuity:(v[\d.]+)$"),
-        "element": read_value(text, r"ELEMENT_VERSION: (\S+)$"),
-        "qrcode": read_value(text, r"QRCODE_VERSION: (\S+)$"),
+        "continuwuity": read_value(docker_text, r"^FROM ghcr\.io/continuwuity/continuwuity:(v[\d.]+)$"),
+        "element": read_value(docker_text, r"^ARG ELEMENT_VERSION=(\S+)$"),
+        "qrcode": read_value(docker_text, r"^ARG QRCODE_VERSION=(\S+)$"),
         "alpine": read_value(docker_text, r"^FROM alpine:([\d.]+) AS web$"),
         "busybox": read_value(docker_text, r"^FROM busybox:([\d.]+)-musl AS busybox$"),
     }
@@ -188,10 +200,9 @@ def update_matrix():
     if not changes:
         return False
 
-    text = text.replace(f"continuwuity:{current['continuwuity']}", f"continuwuity:{latest['continuwuity']}")
-    text = text.replace(f"ELEMENT_VERSION: {current['element']}", f"ELEMENT_VERSION: {latest['element']}")
-    text = text.replace(f"QRCODE_VERSION: {current['qrcode']}", f"QRCODE_VERSION: {latest['qrcode']}")
-    build.write_text(text)
+    docker_text = docker_text.replace(f"continuwuity:{current['continuwuity']}", f"continuwuity:{latest['continuwuity']}")
+    docker_text = docker_text.replace(f"ELEMENT_VERSION={current['element']}", f"ELEMENT_VERSION={latest['element']}")
+    docker_text = docker_text.replace(f"QRCODE_VERSION={current['qrcode']}", f"QRCODE_VERSION={latest['qrcode']}")
     docker_text = docker_text.replace(f"FROM alpine:{current['alpine']} AS", f"FROM alpine:{latest['alpine']} AS")
     docker_text = docker_text.replace(f"FROM busybox:{current['busybox']}-musl", f"FROM busybox:{latest['busybox']}-musl")
     dockerfile.write_text(docker_text)
@@ -208,13 +219,13 @@ def update_matrix():
 
 
 def update_relay():
-    build = ROOT / "matrix_call_relay" / "build.yaml"
-    text = build.read_text()
-    current = read_value(text, r"coturn/coturn:([\d.]+)-alpine$")
+    dockerfile = ROOT / "matrix_call_relay" / "Dockerfile"
+    text = dockerfile.read_text()
+    current = read_value(text, r"^FROM coturn/coturn:([\d.]+)-alpine$")
     latest = latest_coturn(current)
     if version_key(latest) <= version_key(current):
         return False
-    build.write_text(text.replace(f"coturn/coturn:{current}-alpine", f"coturn/coturn:{latest}-alpine"))
+    dockerfile.write_text(text.replace(f"coturn/coturn:{current}-alpine", f"coturn/coturn:{latest}-alpine"))
     addon_version = read_value((ROOT / "matrix_call_relay" / "config.yaml").read_text(), r'^version: "(.*)"$')
     new_version = bump_version("matrix_call_relay")
     set_addon_version("matrix_call_relay", new_version)
@@ -224,11 +235,11 @@ def update_relay():
 
 
 def update_group_calls():
-    build = ROOT / "matrix_group_calls" / "build.yaml"
-    text = build.read_text()
+    dockerfile = ROOT / "matrix_group_calls" / "Dockerfile"
+    text = dockerfile.read_text()
     current = {
-        "livekit": read_value(text, r"livekit-server:(v[\d.]+)$"),
-        "lk_jwt": read_value(text, r"LK_JWT_VERSION: (\S+)$"),
+        "livekit": read_value(text, r"^FROM livekit/livekit-server:(v[\d.]+)$"),
+        "lk_jwt": read_value(text, r"^FROM ghcr\.io/element-hq/lk-jwt-service:(\S+) AS jwt$"),
     }
     latest = {"livekit": pick([latest_livekit()], current["livekit"]), "lk_jwt": pick([latest_lk_jwt()], current["lk_jwt"])}
     changes = {k: (current[k], latest[k]) for k in current if version_key(latest[k]) > version_key(current[k])}
@@ -236,8 +247,8 @@ def update_group_calls():
         return False
 
     text = text.replace(f"livekit-server:{current['livekit']}", f"livekit-server:{latest['livekit']}")
-    text = text.replace(f"LK_JWT_VERSION: {current['lk_jwt']}", f"LK_JWT_VERSION: {latest['lk_jwt']}")
-    build.write_text(text)
+    text = text.replace(f"lk-jwt-service:{current['lk_jwt']} AS", f"lk-jwt-service:{latest['lk_jwt']} AS")
+    dockerfile.write_text(text)
 
     addon_version = read_value((ROOT / "matrix_group_calls" / "config.yaml").read_text(), r'^version: "(.*)"$')
     new_version = bump_version("matrix_group_calls")
@@ -275,14 +286,14 @@ def update_helper_bot():
     """Monday's run also updates every Go module (golang.org/x/crypto, x/net…),
     not only mautrix-go, so fixes in them don't wait for a mautrix release."""
     folder = ROOT / "matrix_helper_bot"
-    build = folder / "build.yaml"
-    text = build.read_text()
+    dockerfile = folder / "Dockerfile"
+    text = dockerfile.read_text()
     go_mod = folder / "go.mod"
     modules_before = go_requirements(go_mod.read_text())
     current = {
         "mautrix": modules_before["maunium.net/go/mautrix"],
-        "go": read_value(text, r'GO_VERSION: "([\d.]+)"$'),
-        "base": read_value(text, r"amd64-base:([\d.]+)$"),
+        "go": read_value(text, r"^FROM golang:([\d.]+)-alpine AS build$"),
+        "base": read_value(text, r"^FROM ghcr\.io/home-assistant/base:([\d.]+)$"),
     }
     latest = {"mautrix": pick([latest_mautrix()], current["mautrix"]), "go": pick([latest_go()], current["go"]),
               "base": latest_ha_base(current["base"])}
@@ -290,10 +301,10 @@ def update_helper_bot():
     all_modules = not MAJOR and (date.today().weekday() == 0 or os.environ.get("UPDATE_GO_MODULES") == "1")
 
     if "go" in changes:
-        text = text.replace(f'GO_VERSION: "{current["go"]}"', f'GO_VERSION: "{latest["go"]}"')
+        text = text.replace(f"golang:{current['go']}-alpine", f"golang:{latest['go']}-alpine")
     if "base" in changes:
-        text = text.replace(f"-base:{current['base']}", f"-base:{latest['base']}")
-    build.write_text(text)
+        text = text.replace(f"home-assistant/base:{current['base']}", f"home-assistant/base:{latest['base']}")
+    dockerfile.write_text(text)
 
     # Update go.mod and go.sum with the Go toolchain the add-on builds with
     go_commands = []
@@ -334,13 +345,13 @@ def update_farmos():
     """The add-on applies farmOS's database updates when it starts with a new
     version."""
     folder = ROOT / "farmos"
-    build = folder / "build.yaml"
-    text = build.read_text()
-    current = read_value(text, r"farmos/farmos:([\d.]+)-amd64$")
+    dockerfile = folder / "Dockerfile"
+    text = dockerfile.read_text()
+    current = read_value(text, r"^FROM farmos/farmos:([\d.]+)$")
     latest = latest_farmos(current)
     if version_key(latest) <= version_key(current):
         return False
-    build.write_text(text.replace(f"farmos/farmos:{current}-", f"farmos/farmos:{latest}-"))
+    dockerfile.write_text(text.replace(f"farmos/farmos:{current}\n", f"farmos/farmos:{latest}\n"))
     addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
     new_version = bump_version("farmos")
     set_addon_version("farmos", new_version)
@@ -366,12 +377,12 @@ def update_minecraft():
     """A new Bedrock release only needs a restart, which installing the bumped
     version gives (with Auto update on)."""
     folder = ROOT / "minecraft_bedrock"
-    build = folder / "build.yaml"
-    text = build.read_text()
+    dockerfile = folder / "Dockerfile"
+    text = dockerfile.read_text()
     current = {
-        "itzg": read_value(text, r"itzg/minecraft-bedrock-server:([\d.]+)$"),
-        "bedrock": read_value(text, r"BEDROCK_VERSION: ([\d.]+)$"),
-        "go": read_value(text, r'GO_VERSION: "([\d.]+)"$'),
+        "itzg": read_value(text, r"^FROM itzg/minecraft-bedrock-server:([\d.]+)$"),
+        "bedrock": read_value(text, r"^ENV VERSION=([\d.]+)$"),
+        "go": read_value(text, r"^FROM golang:([\d.]+)-alpine AS botapi$"),
     }
     latest = {"itzg": pick_calendar(latest_itzg_bedrock(), current["itzg"]),
               "bedrock": pick([latest_bedrock()], current["bedrock"]), "go": pick([latest_go()], current["go"])}
@@ -380,9 +391,9 @@ def update_minecraft():
         return False
 
     text = text.replace(f"itzg/minecraft-bedrock-server:{current['itzg']}", f"itzg/minecraft-bedrock-server:{latest['itzg']}")
-    text = text.replace(f"BEDROCK_VERSION: {current['bedrock']}", f"BEDROCK_VERSION: {latest['bedrock']}")
-    text = text.replace(f'GO_VERSION: "{current["go"]}"', f'GO_VERSION: "{latest["go"]}"')
-    build.write_text(text)
+    text = text.replace(f"ENV VERSION={current['bedrock']}", f"ENV VERSION={latest['bedrock']}")
+    text = text.replace(f"golang:{current['go']}-alpine", f"golang:{latest['go']}-alpine")
+    dockerfile.write_text(text)
 
     addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
     new_version = bump_version("minecraft_bedrock")
@@ -409,13 +420,13 @@ def update_foundry():
     """Only Node.js is in the image (each user installs Foundry from their
     own license), so a Node.js update bumps the add-on's patch version."""
     folder = ROOT / "foundry_vtt"
-    build = folder / "build.yaml"
-    text = build.read_text()
-    current = read_value(text, r"node:([\d.]+)-trixie-slim$")
+    dockerfile = folder / "Dockerfile"
+    text = dockerfile.read_text()
+    current = read_value(text, r"^FROM node:([\d.]+)-trixie-slim$")
     latest = latest_node(current)
     if version_key(latest) <= version_key(current):
         return False
-    build.write_text(text.replace(f"node:{current}-trixie-slim", f"node:{latest}-trixie-slim"))
+    dockerfile.write_text(text.replace(f"node:{current}-trixie-slim", f"node:{latest}-trixie-slim"))
 
     addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
     new_version = bump_version("foundry_vtt")
