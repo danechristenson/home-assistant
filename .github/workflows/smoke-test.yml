@@ -27,7 +27,7 @@ jobs:
         run: |
           changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
             | cut -d/ -f1 | sort -u \
-            | while read -r dir; do [ -f "$dir/config.yaml" ] && echo "$dir"; done)
+            | while read -r dir; do if [ -f "$dir/config.yaml" ]; then echo "$dir"; fi; done)
           echo "addons=$(echo $changed)" >> "$GITHUB_OUTPUT"
 
       - name: Build and smoke-test them
