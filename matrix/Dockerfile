@@ -1,12 +1,7 @@
-# check=skip=InvalidDefaultArgInFrom
-# (Home Assistant always passes BUILD_FROM and the other ARGs from build.yaml,
-# so they need no defaults here; defaults would duplicate the pinned versions)
-ARG BUILD_FROM
-
 # Element Web (the browser client) and the QR code library for the invite page
 FROM alpine:3.24 AS web
-ARG ELEMENT_VERSION
-ARG QRCODE_VERSION
+ARG ELEMENT_VERSION=v1.12.35
+ARG QRCODE_VERSION=2.0.4
 RUN wget -qO- "https://github.com/element-hq/element-web/releases/download/${ELEMENT_VERSION}/element-${ELEMENT_VERSION}.tar.gz" \
         | tar -xz -C /tmp \
     && mkdir -p /www/invite \
@@ -17,7 +12,7 @@ RUN wget -qO- "https://github.com/element-hq/element-web/releases/download/${ELE
 FROM busybox:1.38-musl AS busybox
 
 # The upstream image is distroless; add a static busybox for the shell and web server
-FROM ${BUILD_FROM}
+FROM ghcr.io/continuwuity/continuwuity:v26.9.4
 COPY --from=busybox /bin/busybox /bin/busybox
 RUN ["/bin/busybox", "--install", "-s", "/bin"]
 RUN mkdir -p -m 1777 /tmp

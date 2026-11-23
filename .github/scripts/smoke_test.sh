@@ -25,26 +25,10 @@ fail() {
     exit 1
 }
 
-# Build arguments: BUILD_FROM for amd64 plus everything under args: (an
-# add-on without build.yaml names its base image in its Dockerfile)
-BUILD_ARGS=
-[ -f "$ROOT/$ADDON/build.yaml" ] && BUILD_ARGS=$(python3 - "$ROOT/$ADDON/build.yaml" <<'EOF'
-import re, sys
-text = open(sys.argv[1]).read()
-# The Supervisor's pattern for build_from: anything else is silently replaced
-# by its own base image (e.g. "node:24" needs to be "library/node:24")
-image = re.compile(r"^([a-zA-Z\-\.:\d{}]+/)*?([\-\w{}]+)/([\-\w{}]+)(:[\.\-\w{}]+)?$")
-for arch, base in re.findall(r"^  (\w+): (\S+)$", text.split("build_from:", 1)[1].split("\n\n")[0].split("args:")[0], re.M):
-    if not image.match(base):
-        sys.exit(f"FAIL: build_from {arch} '{base}' is not accepted by the Supervisor")
-args = [f"BUILD_FROM={re.search(r'^  amd64: (\S+)$', text, re.M).group(1)}"]
-section = text.split("args:", 1)[1] if "args:" in text else ""
-args += [f"{k}={v.strip(chr(34))}" for k, v in re.findall(r"^  (\w+): (\S+)$", section, re.M)]
-print(" ".join(f"--build-arg {a}" for a in args))
-EOF
-)
-# shellcheck disable=SC2086
-docker build $BUILD_ARGS -t "$IMAGE" "$ROOT/$ADDON"
+# Every version is pinned in the Dockerfile. build.yaml is deprecated: the
+# Supervisor warns about it, and passes BUILD_FROM only when it's there.
+[ -f "$ROOT/$ADDON/build.yaml" ] && fail "$ADDON/build.yaml: put the base image and versions in the Dockerfile"
+docker build -t "$IMAGE" "$ROOT/$ADDON"
 
 wait_for() {
     url=$1

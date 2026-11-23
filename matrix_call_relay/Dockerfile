@@ -1,8 +1,5 @@
-# check=skip=InvalidDefaultArgInFrom
-# (Home Assistant always passes BUILD_FROM and the other ARGs from build.yaml,
-# so they need no defaults here; defaults would duplicate the pinned versions)
-ARG BUILD_FROM
-FROM ${BUILD_FROM}
+# coturn, the TURN server
+FROM coturn/coturn:4.19.2-alpine
 
 # The upstream image runs as an unprivileged user; the add-on needs to read
 # its options and write to /data and /share
