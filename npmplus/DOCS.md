@@ -24,9 +24,13 @@ detail; this add-on runs its image unchanged.
 4. Add a proxy host per service (**Proxy Hosts**): the name, then where it
    goes (scheme, address, port), and the certificate.
 5. Forward port 443 (TCP, and UDP for HTTP/3) on your router to Home
-   Assistant. Never forward port 81: it controls every host and
-   certificate. If you use access lists by address, check from outside
+   Assistant. If you use access lists by address, check from outside
    (e.g. with your phone off Wi-Fi) that they keep out who they should.
+
+Port 81, the web UI, controls every host and certificate, so it's best kept
+to your home network or a VPN. If you do want it reachable from outside,
+turn on two-factor sign-in (TOTP) for every user first, and use strong
+passwords.
 
 ## Ports
 
@@ -34,7 +38,7 @@ detail; this add-on runs its image unchanged.
 | ---- | ---- |
 | 80 | HTTP: redirects to HTTPS, and Let's Encrypt's HTTP challenge |
 | 443 TCP and UDP | HTTPS and HTTP/3 |
-| 81 | The web UI (HTTPS); your home network only |
+| 81 | The web UI (HTTPS) |
 
 They can be changed on the add-on's **Network** settings, if another add-on
 already uses one. NPMplus still sees visitors' real addresses, for access

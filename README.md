@@ -52,7 +52,7 @@ to it. Matrix and Foundry VTT go behind it; their docs explain how.
 | 8123 (Home Assistant) | Your whole home's controls. Use a VPN (many routers, e.g. GL.iNet, have WireGuard built in) or Home Assistant Cloud. If you must expose it, put it behind the proxy and turn on multi-factor authentication for every user. |
 | 30000 (Foundry VTT) | Unencrypted. Use the reverse proxy instead (its docs explain how). |
 | 7880, 7883 (Matrix Group Calls) | Reached through the reverse proxy over HTTPS, never directly. |
-| 81 (NPMplus or NGINX Proxy Manager admin) | Controls all your proxy hosts and certificates. |
+| 81 (NPMplus or NGINX Proxy Manager admin) | Controls all your proxy hosts and certificates. Use a VPN. If you must expose it, turn on two-factor sign-in for every user. |
 | 22, 445, 139, 1883 and other admin or file-sharing ports | SSH, Samba and MQTT are for your home network only. |
 | Your router's admin page | Turn off remote administration in the router settings. |
 

@@ -22,7 +22,7 @@ ports_description:
   80/tcp: HTTP (redirects to HTTPS; Let's Encrypt HTTP challenge)
   443/tcp: HTTPS
   443/udp: HTTP/3
-  81/tcp: Web UI (HTTPS). Never forward this one
+  81/tcp: Web UI (HTTPS); best kept to your home network or VPN
 # The add-on's config folder (addon_configs/<this add-on>) is NPMplus's
 # custom_nginx folder: custom nginx files, editable over Samba or SSH
 map:
