@@ -31,6 +31,7 @@ Or click the button above to add the repository in one step.
 | [Matrix Helper Bot](./matrix_helper_bot) | Companion to Matrix: lets people you choose reset forgotten passwords and manage Minecraft players from encrypted chat rooms. Optional; no ports. |
 | [Matrix Call Relay](./matrix_call_relay) | Companion to Matrix: lets voice and video calls connect between different networks. Optional; needs router port forwards. |
 | [Minecraft Bedrock](./minecraft_bedrock) | Minecraft Bedrock server (itzg image), with players managed from chat through the Matrix Helper Bot. |
+| [NPMplus](./npmplus) | Reverse proxy with HTTPS certificates and a web UI (ZoeyVid's Nginx Proxy Manager fork, updated within a day of each release). The one place to forward port 443 to. |
 
 ## Before you forward ports
 
@@ -40,7 +41,7 @@ and every forwarded port lets anyone on the internet talk to the software
 behind it. A mistake can expose your home network, so:
 
 **Prefer a reverse proxy for web traffic.** Run one reverse proxy (such as
-the NGINX Proxy Manager add-on) on port 443 with HTTPS, and forward only 443
+the NPMplus add-on here, or NGINX Proxy Manager) on port 443 with HTTPS, and forward only 443
 to it. Matrix and Foundry VTT go behind it; their docs explain how.
 
 **Never forward these:**
@@ -51,7 +52,7 @@ to it. Matrix and Foundry VTT go behind it; their docs explain how.
 | 8123 (Home Assistant) | Your whole home's controls. Use a VPN (many routers, e.g. GL.iNet, have WireGuard built in) or Home Assistant Cloud. If you must expose it, put it behind the proxy and turn on multi-factor authentication for every user. |
 | 30000 (Foundry VTT) | Unencrypted. Use the reverse proxy instead (its docs explain how). |
 | 7880, 7883 (Matrix Group Calls) | Reached through the reverse proxy over HTTPS, never directly. |
-| 81 (NGINX Proxy Manager admin) | Controls all your proxy hosts and certificates. |
+| 81 (NPMplus or NGINX Proxy Manager admin) | Controls all your proxy hosts and certificates. Use a VPN. If you must expose it, turn on two-factor sign-in for every user. |
 | 22, 445, 139, 1883 and other admin or file-sharing ports | SSH, Samba and MQTT are for your home network only. |
 | Your router's admin page | Turn off remote administration in the router settings. |
 

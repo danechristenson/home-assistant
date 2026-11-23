@@ -1,0 +1,33 @@
+name: NPMplus
+version: "1.0.0"
+slug: npmplus
+description: Reverse proxy with HTTPS certificates and a web UI (NPMplus, a fork of Nginx Proxy Manager)
+url: https://github.com/danechristenson/home-assistant/tree/main/npmplus
+arch:
+  - amd64
+  - aarch64
+# The NPMplus image starts with its own init (tini)
+init: false
+startup: services
+boot: auto
+# Home Assistant's internal network with mapped ports, not the host network:
+# Docker's port mapping keeps visitors' real addresses (for access lists and
+# logs) and the add-on can't touch the host's other ports
+ports:
+  80/tcp: 80
+  443/tcp: 443
+  443/udp: 443
+  81/tcp: 81
+ports_description:
+  80/tcp: HTTP (redirects to HTTPS; Let's Encrypt HTTP challenge)
+  443/tcp: HTTPS
+  443/udp: HTTP/3
+  81/tcp: Web UI (HTTPS); best kept to your home network or VPN
+# The add-on's config folder (addon_configs/<this add-on>) is NPMplus's
+# custom_nginx folder: custom nginx files, editable over Samba or SSH
+map:
+  - type: addon_config
+    read_only: false
+    path: /data/custom_nginx
+options: {}
+schema: {}

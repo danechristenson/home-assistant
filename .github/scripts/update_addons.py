@@ -4,7 +4,7 @@
 Checks Continuwuity, Element Web, qrcode-generator and the Alpine and busybox
 build images for Matrix, coturn, LiveKit, lk-jwt-service, mautrix-go, Go and
 the Home Assistant base image for the helper bot, the itzg image, Mojang's
-Bedrock server and Go for Minecraft, and Node.js for Foundry VTT. On Mondays
+Bedrock server and Go for Minecraft, Node.js for Foundry VTT, and NPMplus. On Mondays
 (or with UPDATE_GO_MODULES=1) it also updates all of the helper bot's Go
 modules. For each add-on whose dependencies changed, updates build.yaml (or
 the Dockerfile), the add-on version and the changelog, then prints the
@@ -15,8 +15,9 @@ main. A new major version can break things (qrcode-generator 2.x moved its
 files, coturn majors can change config, each Foundry VTT generation needs a
 particular Node.js major), so `--major --only <add-on>` applies just the
 newer major versions for one add-on, and the workflow opens a pull request
-with them. Continuwuity (v26.x) and the itzg image (2026.x) number their
-versions by year, so they have no major versions and always update daily.
+with them. Continuwuity (v26.x), the itzg image (2026.x) and NPMplus
+(2026-11-18-r1) number their versions by year or date, so they have no major
+versions and always update daily.
 
 Add-on versions are semantic (MAJOR.MINOR.PATCH) and the add-on's own: an
 update within the current major version is a patch (26.9.2 -> 26.9.3), a new
@@ -424,6 +425,42 @@ def update_foundry():
     return True
 
 
+def latest_npmplus():
+    """NPMplus's newest release (dated: 2026-11-18-r1; its betas are
+    pre-releases) and its image's digest, once the image is on Docker Hub."""
+    tag = get_json("https://api.github.com/repos/ZoeyVid/NPMplus/releases/latest")["tag_name"]
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}-r\d+", tag):
+        return None
+    try:
+        image = get_json(f"https://hub.docker.com/v2/repositories/zoeyvid/npmplus/tags/{tag}")
+    except urllib.error.HTTPError:
+        return None
+    return tag, image["digest"]
+
+
+def update_npmplus():
+    """The image runs as it is, pinned by tag and digest in the Dockerfile, so
+    a new NPMplus release is the whole update. NPMplus rewrites every host's
+    nginx files when it starts with a new version, as with its own compose
+    file. A tag pushed again with a new digest is not followed."""
+    folder = ROOT / "npmplus"
+    dockerfile = folder / "Dockerfile"
+    text = dockerfile.read_text()
+    pinned = read_value(text, r"^FROM docker\.io/zoeyvid/npmplus:(\S+)$")
+    current = pinned.split("@")[0]
+    latest = latest_npmplus()
+    if MAJOR or not latest or version_key(latest[0]) <= version_key(current):
+        return False
+    dockerfile.write_text(text.replace(f"zoeyvid/npmplus:{pinned}", f"zoeyvid/npmplus:{latest[0]}@{latest[1]}"))
+
+    addon_version = read_value((folder / "config.yaml").read_text(), r'^version: "(.*)"$')
+    new_version = bump_version("npmplus")
+    set_addon_version("npmplus", new_version)
+    add_changelog_entry("npmplus", new_version, [f"Update NPMplus {current} → {latest[0]}."])
+    print(f"npmplus: {addon_version} -> {new_version} (NPMplus {latest[0]})", file=sys.stderr)
+    return True
+
+
 def os_ids():
     import os
     return f"{os.getuid()}:{os.getgid()}"
@@ -437,6 +474,7 @@ UPDATERS = {
     "matrix_group_calls": update_group_calls,
     "matrix_helper_bot": update_helper_bot,
     "minecraft_bedrock": update_minecraft,
+    "npmplus": update_npmplus,
 }
 
 
