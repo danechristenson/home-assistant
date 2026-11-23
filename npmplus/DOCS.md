@@ -62,16 +62,10 @@ every host's nginx files from its database. Check that your access lists
 still protect what they should after an update (e.g. that a protected site
 asks for its password).
 
-## Moving in from another NPMplus
+## Moving from another reverse proxy
 
-Copy the other NPMplus's data folder (the one mounted at `/data`, with
-`npmplus/database.sqlite` in it) to `import` in
-`/addon_configs/<this add-on>` before this add-on's first start, and its
-custom nginx files to `/addon_configs/<this add-on>` itself. On that start
-it copies the data in, then deletes `import`, since it holds your
-certificates' private keys. It never imports over hosts already here.
-
-From NGINX Proxy Manager, add your hosts again in the web UI.
+Add your hosts, access lists and certificates again in the web UI. Stop the
+other proxy first: only one can have ports 80 and 443.
 
 ## Backups
 
