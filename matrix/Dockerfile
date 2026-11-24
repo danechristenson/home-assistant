@@ -1,6 +1,6 @@
 # Element Web (the browser client) and the QR code library for the invite page
 FROM alpine:3.24 AS web
-ARG ELEMENT_VERSION=v1.12.35
+ARG ELEMENT_VERSION=v1.12.36
 ARG QRCODE_VERSION=2.0.4
 RUN wget -qO- "https://github.com/element-hq/element-web/releases/download/${ELEMENT_VERSION}/element-${ELEMENT_VERSION}.tar.gz" \
         | tar -xz -C /tmp \
