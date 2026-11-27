@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.4
+
+- Update farmOS 4.0.12 → 4.0.13.
+
 ## 2.1.3
 
 - Update farmOS 4.0.9 → 4.0.12.
